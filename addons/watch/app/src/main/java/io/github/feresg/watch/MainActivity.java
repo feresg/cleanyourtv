@@ -302,13 +302,16 @@ public class MainActivity extends Activity {
             h.setText(s.heading);
             h.setTextSize(17);
             h.setTextColor(0xFFFFFFFF);
-            h.setPadding(px(4), px(14), 0, px(6));
+            h.setPadding(px(12), px(8), 0, 0);
             content.addView(h);
             HorizontalScrollView scroll = new HorizontalScrollView(this);
             scroll.setHorizontalScrollBarEnabled(false);
             scroll.setClipToPadding(false);
-            scroll.setPadding(px(4), px(6), px(48), px(6));
+            scroll.setClipChildren(false);
+            // Room for the focused poster, which grows by 6 %, so its frame and caption aren't cut off.
+            scroll.setPadding(px(12), px(16), px(48), px(16));
             LinearLayout row = new LinearLayout(this);
+            row.setClipChildren(false);
             for (Title t : s.titles) {
                 PosterCard card = new PosterCard(this, t, () -> open(t));
                 LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
@@ -354,7 +357,7 @@ public class MainActivity extends Activity {
 
     private void drawCode(Trakt.DeviceCode c) {
         content.removeAllViews();
-        status.setText("Sign in to Trakt: on your phone or computer, open " + c.url + " and enter the code.");
+        status.setText("Sign in to Trakt: on your phone or computer, open the address below and enter the code.");
         LinearLayout box = new LinearLayout(this);
         box.setGravity(Gravity.CENTER_VERTICAL);
         box.setPadding(0, px(24), 0, 0);
