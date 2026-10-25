@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 16:9 banner: a shield with a tick. Own art. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp" android:height="180dp"
+    android:viewportWidth="320" android:viewportHeight="180">
+    <path android:fillColor="#0B1426" android:pathData="M0,0h320v180h-320z" />
+    <path android:strokeColor="#4687FF" android:strokeWidth="8" android:fillColor="#00000000" android:pathData="M160,30l50,18v36c0,32 -22,54 -50,66c-28,-12 -50,-34 -50,-66v-36z" />
+    <path android:strokeColor="#3FB950" android:strokeWidth="9" android:fillColor="#00000000" android:pathData="M138,90l16,16l30,-32" />
+</vector>
