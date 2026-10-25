@@ -1,0 +1,10 @@
+{
+  "tmdb_token": "eyJhbGciOiJIUzI1NiJ9.your-TMDB-API-read-access-token",
+  "trakt_client_id": "your-Trakt-app-client-id",
+  "trakt_client_secret": "your-Trakt-app-client-secret",
+  "kodi_port": 8080,
+  "kodi_user": "kodi",
+  "kodi_pass": "the-password-you-set-in-Kodi",
+  "regions": ["US", "GB", "FR"],
+  "language": "en-US"
+}

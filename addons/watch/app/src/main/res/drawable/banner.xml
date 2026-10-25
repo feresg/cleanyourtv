@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 16:9 banner: three posters and a play mark. Own art. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp" android:height="180dp"
+    android:viewportWidth="320" android:viewportHeight="180">
+    <path android:fillColor="#0E0F13" android:pathData="M0,0h320v180h-320z" />
+    <path android:fillColor="#2A2D36" android:pathData="M70,44h50v76h-50zM200,44h50v76h-50z" />
+    <path android:fillColor="#ED1C24" android:pathData="M130,34h60v96h-60z" />
+    <path android:fillColor="#FFFFFF" android:pathData="M150,64l26,18l-26,18z" />
+    <path android:fillColor="#5B5F6B" android:pathData="M70,140h180v6h-180z" />
+    <path android:fillColor="#FFFFFF" android:pathData="M70,140h110v6h-110z" />
+</vector>
