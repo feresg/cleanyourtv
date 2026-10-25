@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 16:9 banner: three bulbs, one lit. Own art. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp" android:height="180dp"
+    android:viewportWidth="320" android:viewportHeight="180">
+    <path android:fillColor="#15110B" android:pathData="M0,0h320v180h-320z" />
+    <path android:fillColor="#FFB648" android:pathData="M160,52a26,26 0 1 1 -0.1,0zM148,104h24v14h-24z" />
+    <path android:strokeColor="#6E6250" android:strokeWidth="5" android:fillColor="#00000000" android:pathData="M94,66a18,18 0 1 1 -0.1,0zM86,102h16v10h-16zM226,66a18,18 0 1 1 -0.1,0zM218,102h16v10h-16z" />
+</vector>
