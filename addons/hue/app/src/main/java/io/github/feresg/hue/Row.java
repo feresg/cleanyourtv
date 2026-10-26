@@ -67,7 +67,7 @@ final class Row extends LinearLayout {
             track.addView(fill, new LayoutParams(0, LayoutParams.MATCH_PARENT, 0f));
             track.addView(rest, new LayoutParams(0, LayoutParams.MATCH_PARENT, 1f));
             FrameLayout holder = new FrameLayout(context);
-            holder.addView(track, new FrameLayout.LayoutParams(Math.round(200 * dp), Math.round(6 * dp), Gravity.CENTER_VERTICAL));
+            holder.addView(track, new FrameLayout.LayoutParams(Math.round(120 * dp), Math.round(6 * dp), Gravity.CENTER_VERTICAL));
             LayoutParams hp = new LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT);
             hp.rightMargin = Math.round(16 * dp);
             addView(holder, hp);

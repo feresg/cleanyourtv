@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A lit bulb on transparent, drawn tight to its edges: the launcher shows it as the top-bar button's logo at 22dp.
+     A plain icon rather than an adaptive one, whose empty background Android fills with black. Own art. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp" android:height="48dp"
+    android:viewportWidth="48" android:viewportHeight="48">
+    <path android:fillColor="#FFB648" android:pathData="M24,2a16,16 0 0 1 9.5,28.9v4.6h-19v-4.6a16,16 0 0 1 9.5,-28.9z" />
+    <path android:fillColor="#FFB648" android:pathData="M15.5,38h17v3.5h-17zM18,43.5h12v3.5h-12z" />
+</vector>

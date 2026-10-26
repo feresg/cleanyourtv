@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The panel: opaque, rounded on the side that faces Home. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#FF15110B" />
+    <corners android:topLeftRadius="24dp" android:bottomLeftRadius="24dp" />
+</shape>

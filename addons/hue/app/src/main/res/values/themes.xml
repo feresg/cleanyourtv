@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- A panel on the right over whatever is behind it (Home, when opened from the launcher's top bar). -->
+    <style name="Panel" parent="android:Theme.DeviceDefault.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:backgroundDimAmount">0.45</item>
+        <item name="android:windowAnimationStyle">@style/PanelSlide</item>
+    </style>
+
+    <style name="PanelSlide" parent="@android:style/Animation.Activity">
+        <item name="android:activityOpenEnterAnimation">@anim/panel_in</item>
+        <item name="android:activityCloseExitAnimation">@anim/panel_out</item>
+    </style>
+</resources>

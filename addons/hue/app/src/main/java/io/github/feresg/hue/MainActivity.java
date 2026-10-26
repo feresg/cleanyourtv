@@ -7,6 +7,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.InputType;
+import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -30,6 +31,7 @@ import java.util.concurrent.Executors;
  * pairs with its link button. It talks to the bridge only while this screen is open.
  */
 public class MainActivity extends Activity {
+    private static final int PANEL_WIDTH_DP = 480;
     private static final long REFRESH_MS = 5000;
     private static final long PAIR_EVERY_MS = 2000;
     private static final int PAIR_TRIES = 15;
@@ -65,10 +67,13 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         finder = new Finder(this);
+        // A panel on the right over Home, opened from the launcher's top bar; Back closes it.
+        getWindow().setLayout(px(PANEL_WIDTH_DP), ViewGroup.LayoutParams.MATCH_PARENT);
+        getWindow().setGravity(Gravity.END);
         LinearLayout page = new LinearLayout(this);
         page.setOrientation(LinearLayout.VERTICAL);
-        page.setBackgroundColor(0xFF15110B);
-        page.setPadding(px(48), px(32), px(48), px(24));
+        page.setBackgroundResource(R.drawable.panel);
+        page.setPadding(px(32), px(28), px(28), px(20));
         TextView title = new TextView(this);
         title.setText(R.string.app_name);
         title.setTextSize(28);
@@ -371,7 +376,7 @@ public class MainActivity extends Activity {
         } else {
             status.setText(problem != null ? problem
                     : groups.isEmpty() ? "Reading your rooms…"
-                    : "OK switches  ·  ◀ ▶ dims  ·  Menu or hold OK for scenes");
+                    : "OK switches · ◀ ▶ dims · Menu for scenes");
             first = add(new Row(this, "All off", "Every light on the bridge", false, () -> send("0", Hue.on(false)), null));
             String section = null;
             for (Hue.Group g : groups) {

@@ -17,6 +17,19 @@ NordVPN.
 - If the NordVPN app (`com.nordvpn.android`) is missing or disabled, the button says so. A debloat list that
   disables it should leave it enabled.
 
+## VPN in the launcher's top bar
+
+The launcher shows the VPN itself, without this app: with `vpn_pill` on and `vpn_app` set to NordVPN in
+`launcher/app/src/main/res/values/config.xml`, a green "VPN" pill with a lock sits next to the network pill while a
+VPN is up, a red "VPN off" pill while it isn't, and pressing it opens NordVPN to connect:
+
+```xml
+<string name="vpn_app" translatable="false">com.nordvpn.android</string>
+<bool name="vpn_pill">true</bool>
+```
+
+This app stays for when you want to see the public IP, city and ISP the TV appears with.
+
 ## Permissions
 
 | Permission | Why |
