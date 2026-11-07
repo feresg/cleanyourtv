@@ -1,6 +1,8 @@
 package io.github.feresg.watch;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertNull;
 
 import org.json.JSONObject;
@@ -69,6 +71,12 @@ public class UmbrellaTest {
         assertEquals("Kodi: Invalid params.", Kodi.error(new Http.Reply(200, "{\"error\":{\"code\":-32602,\"message\":\"Invalid params.\"},\"id\":1}")));
         assertEquals("Kodi refused the user name or password.", Kodi.error(new Http.Reply(401, "")));
         assertEquals("Kodi's remote control over HTTP is off (Settings, Services, Control).", Kodi.error(new Http.Reply(0, "refused")));
+        Config noPass = new Config("", "", "", "", 8080, "kodi", "", java.util.Arrays.asList("US"), "en-US");
+        assertTrue(Kodi.error(new Http.Reply(401, ""), noPass).startsWith("Kodi refused user \"kodi\" with no password"));
+        Config withPass = new Config("", "", "", "", 8080, "me", "secret", java.util.Arrays.asList("US"), "en-US");
+        String refused = Kodi.error(new Http.Reply(401, ""), withPass);
+        assertTrue(refused.startsWith("Kodi refused user \"me\" with the password from watch.json"));
+        assertFalse("never the password itself", refused.contains("secret"));
     }
 
     @Test

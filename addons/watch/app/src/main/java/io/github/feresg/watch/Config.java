@@ -134,6 +134,8 @@ final class Config {
             e.apply();
             // New Trakt app keys: the old sign-in belonged to the old keys.
             if (o.has("trakt_client_id")) trakt(c).edit().clear().apply();
+            // Home's rows were read with the old keys and countries: read them again on Home's next visit.
+            Shelves.invalidate(c);
             return true;
         } catch (Exception e) {
             return false;

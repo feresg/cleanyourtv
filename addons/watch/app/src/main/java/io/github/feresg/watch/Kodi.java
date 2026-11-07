@@ -62,7 +62,17 @@ final class Kodi {
 
     /** Null when Kodi's answer is a result, else what went wrong. */
     static String error(Http.Reply r) {
-        if (r.code == 401) return "Kodi refused the user name or password.";
+        return error(r, null);
+    }
+
+    /** The same, saying on a refusal which user name was sent and whether a password was (never the password). */
+    static String error(Http.Reply r, Config config) {
+        if (r.code == 401) {
+            if (config == null) return "Kodi refused the user name or password.";
+            return "Kodi refused user \"" + config.kodiUser + "\" with " + (config.kodiPass.isEmpty()
+                    ? "no password: set kodi_pass in watch.json to the password in Kodi's Settings, Services, Control."
+                    : "the password from watch.json: check both against Kodi's Settings, Services, Control.");
+        }
         if (r.code == 0) return "Kodi's remote control over HTTP is off (Settings, Services, Control).";
         if (!r.ok()) return "Kodi answered " + r.code + ".";
         try {
@@ -96,8 +106,8 @@ final class Kodi {
                 return "Stopped.";
             }
         }
-        String why = error(ping);
+        String why = error(ping, config);
         if (why != null) return why;
-        return error(Http.request("POST", url, h, body, TIMEOUT_MS * 3));
+        return error(Http.request("POST", url, h, body, TIMEOUT_MS * 3), config);
     }
 }

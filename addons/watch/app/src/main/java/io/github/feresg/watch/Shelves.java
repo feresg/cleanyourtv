@@ -231,6 +231,21 @@ final class Shelves {
         if (!tmp.renameTo(f)) throw new IOException("could not replace " + f);
     }
 
+    /**
+     * The rows on disk no longer match the keys or the Trakt sign-in (new keys pushed, signed in): mark them old,
+     * keeping them on screen, and tell the launcher, whose next read makes the provider fetch them again.
+     */
+    static void invalidate(Context c) {
+        Snapshot old = load(c);
+        try {
+            save(c, new Snapshot(old.shelves, 0));
+        } catch (IOException | JSONException e) {
+            //noinspection ResultOfMethodCallIgnored
+            new File(c.getFilesDir(), FILE).delete();
+        }
+        c.getContentResolver().notifyChange(ShelfProvider.shelvesUri(c), null);
+    }
+
     static File imageDir(Context c) {
         return new File(c.getCacheDir(), IMAGES);
     }

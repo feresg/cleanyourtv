@@ -403,6 +403,8 @@ public class MainActivity extends Activity {
                     case SIGNED_IN:
                         loaded.clear();
                         loadedAt.clear();
+                        // Home's rows were read signed out: Up next and Continue come with the next read.
+                        net.execute(() -> Shelves.invalidate(getApplicationContext()));
                         show(tab);
                         break;
                     case WAITING:
