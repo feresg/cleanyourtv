@@ -18,7 +18,12 @@ PKG=io.github.feresg.watch
 # Script paths stay relative: with MSYS_NO_PATHCONV, Git Bash would hand Windows Python a /c/... path.
 tv() { "$PY" -I ../../tools/tv.py "$@"; }
 
-[ -f local.properties ] || { [ -n "${ANDROID_HOME:-}" ] && echo "sdk.dir=${ANDROID_HOME//\\//}" > local.properties; } || true
+# The SDK where the launcher's build-and-install.sh looks: Android Studio's default on macOS, then on Linux, then
+# Homebrew's command-line tools.
+export ANDROID_HOME="${ANDROID_HOME:-$(for d in ~/Library/Android/sdk ~/Android/Sdk; do [ -d "$d" ] && echo "$d" && break; done)}"
+export ANDROID_HOME="${ANDROID_HOME:-/opt/homebrew/share/android-commandlinetools}"
+[ -d "$ANDROID_HOME/platforms" ] || { echo "No Android SDK found at $ANDROID_HOME: install platform 34 and build-tools 34.0.0, or set ANDROID_HOME." >&2; exit 1; }
+[ -f local.properties ] || echo "sdk.dir=$(printf '%s' "$ANDROID_HOME" | tr '\\' '/')" > local.properties
 if [ -n "${JAVA_HOME:-}" ]; then export PATH="$JAVA_HOME/bin:$PATH"; fi
 ./gradlew assembleRelease -q --console=plain
 
