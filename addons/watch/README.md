@@ -41,14 +41,16 @@ a developer key. Copy the **API Read Access Token**, the long one. The shorter v
 
 ### 3. Trakt (Up next, Continue, Watchlist)
 
-At [trakt.tv/oauth/applications](https://trakt.tv/oauth/applications), create a **New application**:
+At [app.trakt.tv/settings/apps](https://app.trakt.tv/settings/apps), create a **new API app**:
 
 - **Name:** anything, for example "My TV".
 - **Redirect URI:** `http://localhost`. Trakt lets a development app redirect only to localhost, and the TV's sign-in
   never opens it, but Trakt checks it every time the sign-in is refreshed, so `trakt_redirect_uri` below must be the
   same text. If you entered something else, such as `http://localhost:8080`, put that in the file.
 
-Copy its **Client ID** and **Client Secret**. The first time you open a Trakt tab, the TV shows a code and a QR code
+Copy its **Client ID**. New Trakt apps get no client secret (Trakt now signs apps in without one), and the TV's
+code sign-in needs only the client id. If your app is an older one with a **Client Secret**, you may add it as
+`trakt_client_secret`; it is sent only then. The first time you open a Trakt tab, the TV shows a code and a QR code
 for `trakt.tv/activate`. Enter the code on your phone and the page carries on by itself. The sign-in stays on the TV
 and refreshes itself.
 
@@ -67,7 +69,8 @@ it change. A new `trakt_client_id` signs Trakt out.
 | Key | Default | What it is |
 |---|---|---|
 | `tmdb_token` | none | TMDB API read access token (or v3 key) |
-| `trakt_client_id`, `trakt_client_secret` | none | Your Trakt application |
+| `trakt_client_id` | none | Your Trakt application's Client ID |
+| `trakt_client_secret` | none | Only for an older Trakt app that has one; new apps have no secret |
 | `trakt_redirect_uri` | `http://localhost` | The Redirect URI on your Trakt application, exactly as entered there |
 | `kodi_port` | `8080` | Kodi's web server port |
 | `kodi_user`, `kodi_pass` | `kodi`, none | Kodi's web server login |
@@ -98,6 +101,8 @@ addresses and the Kodi requests) run with `./gradlew testReleaseUnitTest`.
 ## Limits
 
 - **Up next:** looks at your 20 most recently watched series, one Trakt request each, four at a time.
+- **Sign-in:** Trakt's access token lasts 7 days and is renewed by itself. Each refresh token works once, so only
+  one renewal runs at a time. If Trakt ever answers that the sign-in has ended, the Trakt tabs show a new code.
 - **Seasons and episode lists** open in Umbrella, not in this app.
 - **Without TMDB,** the Trakt rows show names without posters, and Umbrella gets no IMDb id for titles that came
   from TMDB.

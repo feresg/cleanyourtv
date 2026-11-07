@@ -25,6 +25,7 @@ final class Config {
 
     final String tmdbToken;
     final String traktId;
+    /** Empty for new Trakt apps, which sign in without one; older apps were given one. */
     final String traktSecret;
     /** The Redirect URI entered on the Trakt app: Trakt checks it when a token is refreshed. */
     final String traktRedirect;
@@ -51,8 +52,9 @@ final class Config {
         return !tmdbToken.isEmpty();
     }
 
+    /** Trakt needs only the app's client id: new apps get no client secret, and older apps' secret is optional. */
     boolean hasTrakt() {
-        return !traktId.isEmpty() && !traktSecret.isEmpty();
+        return !traktId.isEmpty();
     }
 
     private static SharedPreferences prefs(Context c) {

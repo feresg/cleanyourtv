@@ -164,7 +164,7 @@ public class MainActivity extends Activity {
         content.removeAllViews();
         boolean traktTab = t.ordinal() < Tab.TRENDING.ordinal();
         if (traktTab && !config.hasTrakt()) {
-            status.setText("Add your Trakt app's client id and secret with install.sh to see what you are watching."
+            status.setText("Add your Trakt app's client id with install.sh to see what you are watching."
                     + " See the README.");
             return;
         }
@@ -423,7 +423,7 @@ public class MainActivity extends Activity {
                         signIn();
                         break;
                     default:
-                        status.setText("Trakt refused the sign-in. Check the client id and secret.");
+                        status.setText("Trakt refused the sign-in. Check the client id.");
                         content.removeAllViews();
                         break;
                 }

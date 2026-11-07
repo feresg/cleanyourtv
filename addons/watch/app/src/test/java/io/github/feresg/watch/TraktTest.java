@@ -1,6 +1,7 @@
 package io.github.feresg.watch;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
@@ -41,6 +42,30 @@ public class TraktTest {
         assertEquals("r1", body.getString("refresh_token"));
         Config own = new Config("", "id", "secret", "http://localhost:8080/callback", 8080, "kodi", "", Config.DEFAULT_REGIONS, "en-US");
         assertEquals("http://localhost:8080/callback", new org.json.JSONObject(Trakt.refreshBody(own, "r1")).getString("redirect_uri"));
+    }
+
+    @Test
+    public void newAppsSignInWithoutAClientSecret() throws Exception {
+        Config pkce = new Config("", "id", "", "", 8080, "kodi", "", Config.DEFAULT_REGIONS, "en-US");
+        assertTrue("a client id alone is enough", pkce.hasTrakt());
+        org.json.JSONObject poll = new org.json.JSONObject(Trakt.deviceTokenBody(pkce, "dev123"));
+        assertEquals("dev123", poll.getString("code"));
+        assertEquals("id", poll.getString("client_id"));
+        assertFalse(poll.has("client_secret"));
+        assertFalse(new org.json.JSONObject(Trakt.refreshBody(pkce, "r1")).has("client_secret"));
+    }
+
+    @Test
+    public void olderAppsStillSendTheirSecret() throws Exception {
+        Config legacy = new Config("", "id", "s3cret", "", 8080, "kodi", "", Config.DEFAULT_REGIONS, "en-US");
+        assertEquals("s3cret", new org.json.JSONObject(Trakt.deviceTokenBody(legacy, "dev123")).getString("client_secret"));
+        assertEquals("s3cret", new org.json.JSONObject(Trakt.refreshBody(legacy, "r1")).getString("client_secret"));
+        assertFalse(new Config("", "", "", "", 8080, "kodi", "", Config.DEFAULT_REGIONS, "en-US").hasTrakt());
+    }
+
+    @Test
+    public void tokensLastSevenDaysWhenTraktLeavesExpiryOut() throws Exception {
+        assertEquals((1000L + 7 * 86400) * 1000, Trakt.parseTokens("{\"access_token\":\"a\",\"refresh_token\":\"b\",\"created_at\":1000}", 0).expiresAt);
     }
 
     @Test

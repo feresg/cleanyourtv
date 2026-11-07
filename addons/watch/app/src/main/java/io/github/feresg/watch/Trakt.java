@@ -86,9 +86,7 @@ final class Trakt {
     }
 
     Poll poll(DeviceCode code) throws JSONException {
-        Http.Reply r = Http.post(API + "/oauth/device/token", headers(false), new JSONObject()
-                .put("code", code.deviceCode).put("client_id", config.traktId)
-                .put("client_secret", config.traktSecret).toString());
+        Http.Reply r = Http.post(API + "/oauth/device/token", headers(false), deviceTokenBody(config, code.deviceCode));
         Poll p = poll(r.code);
         if (p == Poll.SIGNED_IN) save(parseTokens(r.body, System.currentTimeMillis()));
         return p;
@@ -111,11 +109,27 @@ final class Trakt {
         store.edit().putString("access", t.access).putString("refresh", t.refresh).putLong("expires", t.expiresAt).apply();
     }
 
-    /** A fresh access token when this one ends within the hour (or has been refused). False when signed out. */
-    private boolean refresh(boolean force) {
+    /**
+     * Refresh tokens are single-use, and Up next asks Trakt from several threads at once: only one refresh may run,
+     * and a thread that waited for it uses the token it brought instead of spending the new refresh token again.
+     */
+    private static final Object REFRESHING = new Object();
+
+    /**
+     * A fresh access token when this one ends within the hour, or when Trakt refused {@code rejected} (the access
+     * token a request was turned away with; null for none). False when signed out.
+     */
+    private boolean refresh(String rejected) {
+        synchronized (REFRESHING) {
+            return refreshLocked(rejected);
+        }
+    }
+
+    private boolean refreshLocked(String rejected) {
         String refresh = store.getString("refresh", "");
         if (refresh.isEmpty()) return false;
-        if (!force && store.getLong("expires", 0) - System.currentTimeMillis() > REFRESH_BEFORE_MS) return true;
+        if (rejected != null && !rejected.equals(store.getString("access", ""))) return true;   // refreshed meanwhile
+        if (rejected == null && store.getLong("expires", 0) - System.currentTimeMillis() > REFRESH_BEFORE_MS) return true;
         try {
             Http.Reply r = Http.post(API + "/oauth/token", headers(false), refreshBody(config, refresh));
             if (r.ok()) {
@@ -129,11 +143,20 @@ final class Trakt {
         return signedIn();
     }
 
+    /** The device token poll: the code and the client id; a client secret only for an older app that has one. */
+    static String deviceTokenBody(Config config, String deviceCode) throws JSONException {
+        return withSecret(new JSONObject().put("code", deviceCode).put("client_id", config.traktId), config).toString();
+    }
+
     /** The refresh request. Trakt refuses it unless redirect_uri is the one entered on the Trakt app. */
     static String refreshBody(Config config, String refreshToken) throws JSONException {
-        return new JSONObject().put("refresh_token", refreshToken).put("client_id", config.traktId)
-                .put("client_secret", config.traktSecret).put("redirect_uri", config.traktRedirect)
-                .put("grant_type", "refresh_token").toString();
+        return withSecret(new JSONObject().put("refresh_token", refreshToken).put("client_id", config.traktId)
+                .put("redirect_uri", config.traktRedirect).put("grant_type", "refresh_token"), config).toString();
+    }
+
+    /** New Trakt apps sign in without a client secret (it is deprecated); older apps that were given one send it. */
+    private static JSONObject withSecret(JSONObject body, Config config) throws JSONException {
+        return config.traktSecret.isEmpty() ? body : body.put("client_secret", config.traktSecret);
     }
 
     private Map<String, String> headers(boolean auth) {
@@ -146,9 +169,10 @@ final class Trakt {
 
     /** A signed-in GET; refreshes the token once if Trakt refuses it. */
     private String get(String path) throws JSONException {
-        if (!refresh(false)) throw new JSONException("signed out");
+        if (!refresh(null)) throw new JSONException("signed out");
+        String sent = store.getString("access", "");
         Http.Reply r = Http.get(API + path, headers(true));
-        if (r.code == 401 && refresh(true)) r = Http.get(API + path, headers(true));
+        if (r.code == 401 && refresh(sent)) r = Http.get(API + path, headers(true));
         if (r.code == 401) throw new JSONException("signed out");
         if (!r.ok()) throw new JSONException("Trakt answered " + r.code);
         return r.body;
@@ -217,7 +241,7 @@ final class Trakt {
         JSONObject o = new JSONObject(body);
         long created = o.optLong("created_at", nowMs / 1000);
         return new Tokens(o.getString("access_token"), o.optString("refresh_token"),
-                (created + o.optLong("expires_in", 86400)) * 1000L);
+                (created + o.optLong("expires_in", 7 * 86400L)) * 1000L);
     }
 
     /** The series in /sync/watched/shows, most recently watched first. */

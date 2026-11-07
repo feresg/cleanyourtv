@@ -1,7 +1,6 @@
 {
   "tmdb_token": "eyJhbGciOiJIUzI1NiJ9.your-TMDB-API-read-access-token",
   "trakt_client_id": "your-Trakt-app-client-id",
-  "trakt_client_secret": "your-Trakt-app-client-secret",
   "trakt_redirect_uri": "http://localhost",
   "kodi_port": 8080,
   "kodi_user": "kodi",
