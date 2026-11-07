@@ -308,7 +308,7 @@
 
     <!-- The Wi-Fi/Ethernet pill in the top bar. false hides it (on Android 14 with Location off it can
          only say "Wi-Fi", not the network name). Can also be set with "show_network_pill" in a theme. -->
-    <bool name="show_network_pill">true</bool>
+    <bool name="show_network_pill">false</bool>
     <!-- Apps shown as round buttons with their own logo in the top bar, left of the network pill, in this order.
          They leave the grid. Missing apps are skipped. Can also be set with "top_bar_apps" in a theme. -->
     <string-array name="top_bar_apps" translatable="false">
@@ -353,7 +353,7 @@
     <!-- A line under the clock, such as the weather, from a module whose card is shown and which offers one (its card
          activity names a provider of its own in "com.gathin.tvhome.clock_line" meta-data; docs/specs/clock-line.md). Read
          with no network of the launcher's own. Needs module_cards. Off by default; a theme can set "clock_line". -->
-    <bool name="clock_line">false</bool>
+    <bool name="clock_line">true</bool>
 
     <!-- Grid rows left visible under the dock on the home screen. 0 = dock sits at the very bottom. Tiles shrink if
          the dock, its title and this many rows would not otherwise fit the screen height. -->
