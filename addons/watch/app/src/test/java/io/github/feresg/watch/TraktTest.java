@@ -33,6 +33,17 @@ public class TraktTest {
     }
 
     @Test
+    public void refreshSendsTheAppsRedirectUri() throws Exception {
+        Config standard = new Config("", "id", "secret", "", 8080, "kodi", "", Config.DEFAULT_REGIONS, "en-US");
+        org.json.JSONObject body = new org.json.JSONObject(Trakt.refreshBody(standard, "r1"));
+        assertEquals("http://localhost", body.getString("redirect_uri"));
+        assertEquals("refresh_token", body.getString("grant_type"));
+        assertEquals("r1", body.getString("refresh_token"));
+        Config own = new Config("", "id", "secret", "http://localhost:8080/callback", 8080, "kodi", "", Config.DEFAULT_REGIONS, "en-US");
+        assertEquals("http://localhost:8080/callback", new org.json.JSONObject(Trakt.refreshBody(own, "r1")).getString("redirect_uri"));
+    }
+
+    @Test
     public void pollAnswersByStatusCode() {
         assertEquals(Trakt.Poll.SIGNED_IN, Trakt.poll(200));
         assertEquals(Trakt.Poll.WAITING, Trakt.poll(400));

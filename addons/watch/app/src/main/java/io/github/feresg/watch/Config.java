@@ -20,21 +20,26 @@ import java.util.List;
 final class Config {
     static final String PUSHED = "config.json";
     static final List<String> DEFAULT_REGIONS = Arrays.asList("US", "GB", "FR");
+    /** Trakt lets a development app redirect only to localhost; the device sign-in never opens it. */
+    static final String DEFAULT_TRAKT_REDIRECT = "http://localhost";
 
     final String tmdbToken;
     final String traktId;
     final String traktSecret;
+    /** The Redirect URI entered on the Trakt app: Trakt checks it when a token is refreshed. */
+    final String traktRedirect;
     final int kodiPort;
     final String kodiUser;
     final String kodiPass;
     final List<String> regions;
     final String language;
 
-    Config(String tmdbToken, String traktId, String traktSecret, int kodiPort, String kodiUser, String kodiPass,
-           List<String> regions, String language) {
+    Config(String tmdbToken, String traktId, String traktSecret, String traktRedirect, int kodiPort, String kodiUser,
+           String kodiPass, List<String> regions, String language) {
         this.tmdbToken = tmdbToken;
         this.traktId = traktId;
         this.traktSecret = traktSecret;
+        this.traktRedirect = traktRedirect.isEmpty() ? DEFAULT_TRAKT_REDIRECT : traktRedirect;
         this.kodiPort = kodiPort;
         this.kodiUser = kodiUser;
         this.kodiPass = kodiPass;
@@ -61,7 +66,8 @@ final class Config {
     static Config load(Context c) {
         SharedPreferences p = prefs(c);
         return new Config(p.getString("tmdb_token", ""), p.getString("trakt_client_id", ""),
-                p.getString("trakt_client_secret", ""), p.getInt("kodi_port", 8080), p.getString("kodi_user", "kodi"),
+                p.getString("trakt_client_secret", ""), p.getString("trakt_redirect_uri", DEFAULT_TRAKT_REDIRECT),
+                p.getInt("kodi_port", 8080), p.getString("kodi_user", "kodi"),
                 p.getString("kodi_pass", ""), regions(p.getString("regions", "")), p.getString("language", "en-US"));
     }
 
@@ -84,7 +90,8 @@ final class Config {
         try {
             JSONObject o = new JSONObject(new String(Files.readAllBytes(f.toPath()), StandardCharsets.UTF_8));
             SharedPreferences.Editor e = prefs(c).edit();
-            for (String k : new String[]{"tmdb_token", "trakt_client_id", "trakt_client_secret", "kodi_user", "kodi_pass", "language"}) {
+            for (String k : new String[]{"tmdb_token", "trakt_client_id", "trakt_client_secret", "trakt_redirect_uri", "kodi_user",
+                    "kodi_pass", "language"}) {
                 if (o.has(k)) e.putString(k, o.optString(k).trim());
             }
             if (o.has("kodi_port")) e.putInt("kodi_port", o.optInt("kodi_port", 8080));

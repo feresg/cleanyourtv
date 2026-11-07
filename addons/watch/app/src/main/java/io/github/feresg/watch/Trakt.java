@@ -24,7 +24,6 @@ import java.util.concurrent.Future;
  */
 final class Trakt {
     static final String API = "https://api.trakt.tv";
-    static final String REDIRECT = "urn:ietf:wg:oauth:2.0:oob";
     /** Series looked at for Up next, the most recently watched first. */
     static final int UP_NEXT_SHOWS = 20;
     private static final long REFRESH_BEFORE_MS = 60 * 60 * 1000L;
@@ -118,10 +117,7 @@ final class Trakt {
         if (refresh.isEmpty()) return false;
         if (!force && store.getLong("expires", 0) - System.currentTimeMillis() > REFRESH_BEFORE_MS) return true;
         try {
-            Http.Reply r = Http.post(API + "/oauth/token", headers(false), new JSONObject()
-                    .put("refresh_token", refresh).put("client_id", config.traktId)
-                    .put("client_secret", config.traktSecret).put("redirect_uri", REDIRECT)
-                    .put("grant_type", "refresh_token").toString());
+            Http.Reply r = Http.post(API + "/oauth/token", headers(false), refreshBody(config, refresh));
             if (r.ok()) {
                 save(parseTokens(r.body, System.currentTimeMillis()));
                 return true;
@@ -131,6 +127,13 @@ final class Trakt {
             // Keep the old token and try again next time.
         }
         return signedIn();
+    }
+
+    /** The refresh request. Trakt refuses it unless redirect_uri is the one entered on the Trakt app. */
+    static String refreshBody(Config config, String refreshToken) throws JSONException {
+        return new JSONObject().put("refresh_token", refreshToken).put("client_id", config.traktId)
+                .put("client_secret", config.traktSecret).put("redirect_uri", config.traktRedirect)
+                .put("grant_type", "refresh_token").toString();
     }
 
     private Map<String, String> headers(boolean auth) {

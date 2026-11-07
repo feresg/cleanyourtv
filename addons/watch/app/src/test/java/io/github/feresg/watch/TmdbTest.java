@@ -13,7 +13,7 @@ import java.util.List;
 /** Against the shapes TMDB's API documents for trending, discover and details with external ids. */
 public class TmdbTest {
     private static Config config(String token) {
-        return new Config(token, "", "", 8080, "kodi", "", Config.regions("US,UK,fr"), "en-US");
+        return new Config(token, "", "", "", 8080, "kodi", "", Config.regions("US,UK,fr"), "en-US");
     }
 
     @Test

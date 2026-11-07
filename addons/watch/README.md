@@ -44,7 +44,9 @@ a developer key. Copy the **API Read Access Token**, the long one. The shorter v
 At [trakt.tv/oauth/applications](https://trakt.tv/oauth/applications), create a **New application**:
 
 - **Name:** anything, for example "My TV".
-- **Redirect URI:** `urn:ietf:wg:oauth:2.0:oob`.
+- **Redirect URI:** `http://localhost`. Trakt lets a development app redirect only to localhost, and the TV's sign-in
+  never opens it, but Trakt checks it every time the sign-in is refreshed, so `trakt_redirect_uri` below must be the
+  same text. If you entered something else, such as `http://localhost:8080`, put that in the file.
 
 Copy its **Client ID** and **Client Secret**. The first time you open a Trakt tab, the TV shows a code and a QR code
 for `trakt.tv/activate`. Enter the code on your phone and the page carries on by itself. The sign-in stays on the TV
@@ -66,6 +68,7 @@ it change. A new `trakt_client_id` signs Trakt out.
 |---|---|---|
 | `tmdb_token` | none | TMDB API read access token (or v3 key) |
 | `trakt_client_id`, `trakt_client_secret` | none | Your Trakt application |
+| `trakt_redirect_uri` | `http://localhost` | The Redirect URI on your Trakt application, exactly as entered there |
 | `kodi_port` | `8080` | Kodi's web server port |
 | `kodi_user`, `kodi_pass` | `kodi`, none | Kodi's web server login |
 | `regions` | `["US", "GB", "FR"]` | Countries for the TMDB rows, two-letter codes (`UK` is read as `GB`) |
