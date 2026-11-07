@@ -34,9 +34,17 @@ final class Config {
     final String kodiPass;
     final List<String> regions;
     final String language;
+    /** The rows Watch offers Home, in order (Shelves.ALL by default). */
+    final List<String> homeShelves;
 
     Config(String tmdbToken, String traktId, String traktSecret, String traktRedirect, int kodiPort, String kodiUser,
            String kodiPass, List<String> regions, String language) {
+        this(tmdbToken, traktId, traktSecret, traktRedirect, kodiPort, kodiUser, kodiPass, regions, language,
+                Arrays.asList(Shelves.ALL));
+    }
+
+    Config(String tmdbToken, String traktId, String traktSecret, String traktRedirect, int kodiPort, String kodiUser,
+           String kodiPass, List<String> regions, String language, List<String> homeShelves) {
         this.tmdbToken = tmdbToken;
         this.traktId = traktId;
         this.traktSecret = traktSecret;
@@ -46,6 +54,7 @@ final class Config {
         this.kodiPass = kodiPass;
         this.regions = regions;
         this.language = language;
+        this.homeShelves = homeShelves;
     }
 
     boolean hasTmdb() {
@@ -70,7 +79,20 @@ final class Config {
         return new Config(p.getString("tmdb_token", ""), p.getString("trakt_client_id", ""),
                 p.getString("trakt_client_secret", ""), p.getString("trakt_redirect_uri", DEFAULT_TRAKT_REDIRECT),
                 p.getInt("kodi_port", 8080), p.getString("kodi_user", "kodi"),
-                p.getString("kodi_pass", ""), regions(p.getString("regions", "")), p.getString("language", "en-US"));
+                p.getString("kodi_pass", ""), regions(p.getString("regions", "")), p.getString("language", "en-US"),
+                homeShelves(p.getString("home_shelves", null)));
+    }
+
+    /** "up_next,trending" to the known row ids it names, in order; all of them when unset (null). */
+    static List<String> homeShelves(String csv) {
+        if (csv == null) return Arrays.asList(Shelves.ALL);
+        List<String> known = Arrays.asList(Shelves.ALL);
+        List<String> out = new ArrayList<>();
+        for (String id : csv.split(",")) {
+            String t = id.trim();
+            if (known.contains(t) && !out.contains(t)) out.add(t);
+        }
+        return out;
     }
 
     /** "US,GB,FR" to a list of two-letter codes; the default when empty. UK is taken for GB. */
@@ -97,6 +119,12 @@ final class Config {
                 if (o.has(k)) e.putString(k, o.optString(k).trim());
             }
             if (o.has("kodi_port")) e.putInt("kodi_port", o.optInt("kodi_port", 8080));
+            if (o.has("home_shelves")) {
+                JSONArray a = o.optJSONArray("home_shelves");
+                StringBuilder csv = new StringBuilder();
+                for (int i = 0; a != null && i < a.length(); i++) csv.append(i > 0 ? "," : "").append(a.optString(i));
+                e.putString("home_shelves", csv.toString());
+            }
             if (o.has("regions")) {
                 JSONArray a = o.optJSONArray("regions");
                 StringBuilder csv = new StringBuilder();

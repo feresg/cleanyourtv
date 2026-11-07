@@ -33,11 +33,20 @@
                 <category android:name="com.gathin.tvhome.category.DOCK_CARD" />
             </intent-filter>
             <meta-data android:name="com.gathin.tvhome.card" android:resource="@xml/module_card" />
+            <!-- The launcher's home_shelves switch reads Home rows from this provider (ShelfProvider). -->
+            <meta-data android:name="com.gathin.tvhome.shelves" android:value="${applicationId}.shelves" />
         </activity>
 
         <activity
             android:name=".DetailActivity"
             android:exported="false" />
+
+        <!-- Watch's rows for the launcher's Home: read-only, and only for the launcher signed with the same key (checked
+             in code, so it works whichever was installed first). -->
+        <provider
+            android:name=".ShelfProvider"
+            android:authorities="${applicationId}.shelves"
+            android:exported="true" />
 
         <!-- install.sh writes the keys here with `content write`, so they never sit on a command line. Write-only,
              one file name, and only the ADB shell may call it. -->

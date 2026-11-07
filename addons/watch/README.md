@@ -80,6 +80,18 @@ it change. A new `trakt_client_id` signs Trakt out.
 | `kodi_user`, `kodi_pass` | `kodi`, none | Kodi's web server login |
 | `regions` | `["US", "GB", "FR"]` | Countries for the TMDB rows, two-letter codes (`UK` is read as `GB`) |
 | `language` | `en-US` | Language of titles and overviews from TMDB, for example `fr-FR` |
+| `home_shelves` | all four | The rows Watch offers the launcher's Home, in order: `up_next`, `continue`, `trending`, `new` |
+
+## Rows on Home
+
+With the launcher's `home_shelves` switch on, Home shows Watch's rows under the app rows: Up next and Continue
+watching (when Trakt is signed in), Trending this week, and New on streaming in your first country (French films and
+series for France). OK on a card opens that title's page here, and Back returns to Home.
+
+The launcher has no network access, so Watch does the reading. `ShelfProvider` hands Home the rows from a copy on the
+TV and their pictures (TMDB backdrops at w300) from Watch's cache. When Home opens and that copy is more than 30
+minutes old, Watch reads Trakt and TMDB again on one thread of its own and tells Home, which shows the new rows. There is
+no background service or timer: nothing is fetched unless Home asks.
 
 ## Permissions
 
@@ -90,13 +102,19 @@ it change. A new `trakt_client_id` signs Trakt out.
 - **What is sent:** to Trakt, your app keys and sign-in token. To TMDB, your key and the lists asked for. To Kodi,
   its login and the Umbrella address.
 - **Plain HTTP:** allowed for `127.0.0.1` and `localhost` only (`res/xml/network.xml`). Everything else is HTTPS.
-- **Storage:** keys and tokens stay in the app's own storage (backups are off). Posters are kept in memory only.
+- **Storage:** keys and tokens stay in the app's own storage (backups are off). The Watch screen keeps posters in
+  memory only. Home's rows are kept in `shelves.json` in the app's own files, their pictures (at most 80, the ones no
+  row uses deleted at each read) in its cache.
+- **Home's rows:** `ShelfProvider` is exported so the launcher can read it, and answers only the launcher
+  (`com.gathin.tvhome`) signed with the same key as Watch, checked on every call; any other app is refused. It is
+  read-only. The launcher opens a title by handing Watch only that title's key, which Watch looks up in its own rows.
 - **Pushed config:** `ConfigProvider` takes the pushed file, and only the ADB shell can use it, because it
   requires `WRITE_SECURE_SETTINGS`, as Smart Home's does. On a TV that won't hand the shell that provider, `install.sh`
   copies the file into the app's own folder (`Android/data/io.github.feresg.watch/files`) instead, where the provider
   would have put it. Either way the app reads it once on opening and deletes it.
-- **Nothing else:** no background service, no telemetry, no ads, no libraries. It reads Trakt and TMDB only while
-  the screen is open. A tab's rows are kept for 10 minutes.
+- **Nothing else:** no background service, no telemetry, no ads, no libraries. It reads Trakt and TMDB while its
+  screen is open (a tab's rows are kept for 10 minutes) and, for Home's rows, when Home asks and its copy is over 30
+  minutes old.
 
 ## Build and install
 

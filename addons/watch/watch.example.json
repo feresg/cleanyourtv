@@ -6,5 +6,6 @@
   "kodi_user": "kodi",
   "kodi_pass": "the-password-you-set-in-Kodi",
   "regions": ["US", "GB", "FR"],
-  "language": "en-US"
+  "language": "en-US",
+  "home_shelves": ["up_next", "continue", "trending", "new"]
 }

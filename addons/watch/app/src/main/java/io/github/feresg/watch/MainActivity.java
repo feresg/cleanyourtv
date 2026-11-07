@@ -18,14 +18,11 @@ import org.json.JSONException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
 /**
  * The tile and module card open this: tabs for what you are watching on Trakt (Up next, paused, the watchlist) and
@@ -38,7 +35,6 @@ public class MainActivity extends Activity {
     private static final String[] TAB_NAMES = {"Up next", "Continue", "Watchlist", "Trending", "New on streaming"};
     /** A tab's rows are read again after this long. */
     private static final long FRESH_MS = 10 * 60 * 1000L;
-    private static final int ROW_MAX = 20;
     /** Moving along the tabs switches the page once focus stops for this long. */
     private static final long TAB_SETTLE_MS = 250;
 
@@ -69,9 +65,17 @@ public class MainActivity extends Activity {
         if (pendingTab != null && pendingTab != tab) show(pendingTab);
     };
 
+    /** Set by the launcher's Home row (home_shelves) when a title is opened: that title's key in Watch's rows. */
+    static final String EXTRA_SHELF_ITEM = "com.gathin.tvhome.extra.SHELF_ITEM";
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // Opened from a Home row: show that title's page alone, so Back returns to Home.
+        if (openShelfItem(getIntent())) {
+            finish();
+            return;
+        }
         LinearLayout page = new LinearLayout(this);
         page.setOrientation(LinearLayout.VERTICAL);
         page.setBackgroundColor(0xFF0E0F13);
@@ -225,14 +229,14 @@ public class MainActivity extends Activity {
         LocalDate today = LocalDate.now();
         switch (t) {
             case UP_NEXT:
-                rows.add(new Shelf("Up next", complete(c, tmdb, tr.upNext())));
+                rows.add(new Shelf("Up next", Shelves.complete(c, tmdb, tr.upNext())));
                 break;
             case PAUSED:
-                rows.add(new Shelf("Paused", complete(c, tmdb, tr.paused())));
+                rows.add(new Shelf("Paused", Shelves.complete(c, tmdb, tr.paused())));
                 break;
             case WATCHLIST:
-                rows.add(new Shelf("Films on your watchlist", complete(c, tmdb, tr.watchlist("movies"))));
-                rows.add(new Shelf("Series on your watchlist", complete(c, tmdb, tr.watchlist("shows"))));
+                rows.add(new Shelf("Films on your watchlist", Shelves.complete(c, tmdb, tr.watchlist("movies"))));
+                rows.add(new Shelf("Series on your watchlist", Shelves.complete(c, tmdb, tr.watchlist("shows"))));
                 break;
             case TRENDING:
                 rows.add(new Shelf("Trending this week", tmdb.list(tmdb.trending(), null)));
@@ -252,38 +256,8 @@ public class MainActivity extends Activity {
         }
         List<Shelf> out = new ArrayList<>();
         for (Shelf s : rows) {
-            List<Title> unique = dedupe(s.titles);
+            List<Title> unique = Shelves.dedupe(s.titles);
             if (!unique.isEmpty()) out.add(new Shelf(s.heading, unique));
-        }
-        return out;
-    }
-
-    /** Posters and overviews for Trakt's titles, read from TMDB four at a time. */
-    private static List<Title> complete(Config c, Tmdb tmdb, List<Title> titles) {
-        if (!c.hasTmdb() || titles.isEmpty()) return titles;
-        ExecutorService pool = Executors.newFixedThreadPool(4);
-        try {
-            List<Future<?>> jobs = new ArrayList<>();
-            for (Title t : titles) jobs.add(pool.submit(() -> tmdb.complete(t, false)));
-            for (Future<?> f : jobs) {
-                try {
-                    f.get();
-                } catch (Exception ignored) {
-                    // That title stays without a poster.
-                }
-            }
-        } finally {
-            pool.shutdownNow();
-        }
-        return titles;
-    }
-
-    private static List<Title> dedupe(List<Title> titles) {
-        Set<String> seen = new LinkedHashSet<>();
-        List<Title> out = new ArrayList<>();
-        for (Title t : titles) {
-            if (seen.add(t.key())) out.add(t);
-            if (out.size() == ROW_MAX) break;
         }
         return out;
     }
@@ -328,6 +302,26 @@ public class MainActivity extends Activity {
 
     private void open(Title t) {
         startActivity(new Intent(this, DetailActivity.class).putExtra(DetailActivity.TITLE, t.toJson()));
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        openShelfItem(intent);
+    }
+
+    /**
+     * Opens the title a Home row asked for, looked up by key in the rows Watch keeps on disk; the intent carries only
+     * that key. True when it opened one.
+     */
+    private boolean openShelfItem(Intent intent) {
+        String key = intent == null ? null : intent.getStringExtra(EXTRA_SHELF_ITEM);
+        if (key == null || key.length() > 128) return false;
+        Title t = Shelves.load(this).find(key);
+        if (t == null) return false;
+        open(t);
+        return true;
     }
 
     // ---- Trakt sign-in, with the device code
