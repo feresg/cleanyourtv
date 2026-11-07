@@ -337,19 +337,19 @@
     <!-- Hold OK on a tile opens a small menu: Move (picks the tile up for reordering), Remove from Home (only with
          app_library) and App info. false keeps the old behaviour: holding OK opens the app's App info page.
          Can also be set with "tile_menu": true in a theme's config.json. -->
-    <bool name="tile_menu">false</bool>
+    <bool name="tile_menu">true</bool>
 
     <!-- Home holds the dock and this many rows (1 to 3), and its last tile opens the App library, where every other
          app is: an app is on Home exactly when its tile shows, the ones that don't fit are unticked in the library, and
          ticking another is refused while Home is full. Reorder with Move or Reorder apps. Needs app_library; ignored
          with single_row. Sets the rows under the dock (rows_below_dock) to the same number. 0, the default, leaves Home
          as it is. Can also be set with "home_rows" in a theme. -->
-    <integer name="home_rows">0</integer>
+    <integer name="home_rows">1</integer>
     <!-- Rows of pictures under the apps, from a module whose card is shown and which offers them (its card activity
          names a provider of its own in "com.gathin.tvhome.shelves" meta-data; docs/specs/shelves.md). The launcher reads
          them from that provider, with no network of its own; Down from the last app row goes into them and OK opens the
          module at that title. Needs module_cards. Off by default; a theme can set "home_shelves". -->
-    <bool name="home_shelves">false</bool>
+    <bool name="home_shelves">true</bool>
 
     <!-- Grid rows left visible under the dock on the home screen. 0 = dock sits at the very bottom. Tiles shrink if
          the dock, its title and this many rows would not otherwise fit the screen height. -->
@@ -372,7 +372,7 @@
     <bool name="show_home_settings_shortcut">false</bool>
 
     <!-- Installed launchable apps, including ordinary Android apps. Also settable in config.json. -->
-    <bool name="app_library">false</bool>
+    <bool name="app_library">true</bool>
     <!-- Every app tile is its icon on a card tinted from that icon, name only under the focused tile,
          instead of each app's own banner. Off by default; a theme can set "uniform_tiles": true. -->
     <bool name="uniform_tiles">false</bool>
@@ -382,7 +382,7 @@
     <!-- OK opens every app in the library, not only the apps on Home: for a library that holds the apps a theme
          keeps off Home with hidden_apps. Hold OK still offers Add to Home. app_library_selection wins when both are
          on. Off by default; a theme can set "library_ok_opens": true (also needs app_library). -->
-    <bool name="library_ok_opens">false</bool>
+    <bool name="library_ok_opens">true</bool>
 
     <!-- Apps pre-seeded into the App library's "added" set at startup (config.xml library_apps, or a theme's
          config.json). They show on Home as if the owner had added them in the App library UI, and stay
