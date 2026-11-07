@@ -34,6 +34,11 @@ if [ "${USERS:-0}" -gt 1 ]; then
   [ -n "$CUR" ] && UOPT="--user $CUR" && echo "This TV has $USERS users; using the one on screen, user $CUR."
 fi
 
+# Removing an app in the TV's settings while another profile has it only removes it for the profile on screen, and
+# pm install -r then updates the package without bringing it back there. install-existing does that; when the app is
+# already installed for the profile it changes nothing.
+tv "pm install-existing $UOPT $PKG" >/dev/null || true
+
 # Success can come before Android will start the app (a slow TV still registering it), and something on the TV can
 # also remove, hide or disable it right after. Wait until Android resolves the app's own screen before using it.
 LAUNCH="$PKG/.MainActivity"
@@ -49,7 +54,8 @@ if [ -z "$READY" ]; then
   cat >&2 <<EOF
 How to read it:
   - $PKG missing even under -u: the TV removed the app right after installing it (a vendor install guard).
-  - "installed=true" only for another user than the one on screen: it went to another profile.
+  - "installed=true" only for another user than the one on screen: it is installed for another profile only;
+    tools/tv.py 'pm install-existing --user <the user on screen> $PKG' brings it back.
   - "hidden=true" or "suspended=true": something on the TV hid or suspended it.
   - listed under -d, or "enabled=2" or "3": it is disabled; tools/tv.py 'pm enable $PKG' turns it back on.
 Nothing else was done after the install.
