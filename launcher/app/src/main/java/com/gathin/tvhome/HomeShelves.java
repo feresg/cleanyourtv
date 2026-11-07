@@ -44,7 +44,7 @@ final class HomeShelves {
     static final String TAG = "TvHomeShelves";
 
     /** Rows on Home in all, and titles in one row. */
-    static final int MAX_ROWS = 4;
+    static final int MAX_ROWS = 6;
     static final int MAX_ITEMS = 20;
     static final int ID_MAX = 128;
     static final int AUTHORITY_MAX = 128;
@@ -170,7 +170,7 @@ final class HomeShelves {
         Map<String, Bitmap> used = new HashMap<>();
         for (Cards.Card card : shown) {
             if (rows.size() >= MAX_ROWS) break;
-            String authority = authority(pm, card, logged);
+            String authority = authority(pm, card, META, logged);
             if (authority == null) continue;
             try {
                 rows.addAll(readCard(cr, card, authority, MAX_ROWS - rows.size(), pictures, used, pictureW, pictureH));
@@ -184,16 +184,19 @@ final class HomeShelves {
         return rows;
     }
 
-    /** The provider authority a shown card names, when it is one of the card's own app; else null. */
-    private static String authority(PackageManager pm, Cards.Card card, Set<String> logged) {
+    /**
+     * The provider authority a shown card names in the meta-data key, when it is one of the card's own app; else null.
+     * Also clock_line's (ClockLine).
+     */
+    static String authority(PackageManager pm, Cards.Card card, String key, Set<String> logged) {
         try {
             ActivityInfo ai = pm.getActivityInfo(card.component, PackageManager.GET_META_DATA);
             Bundle meta = ai.metaData;
-            if (meta == null || !meta.containsKey(META)) return null;   // this card offers no rows: no log
-            String authority = meta.getString(META);
+            if (meta == null || !meta.containsKey(key)) return null;   // this card offers none: no log
+            String authority = meta.getString(key);
             String reason = null;
             if (!validAuthority(authority)) {
-                reason = "the " + META + " meta-data is not a provider authority";
+                reason = "the " + key + " meta-data is not a provider authority";
             } else {
                 ProviderInfo provider = pm.resolveContentProvider(authority, 0);
                 if (provider == null) reason = "no provider answers " + authority;

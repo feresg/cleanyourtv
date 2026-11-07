@@ -38,7 +38,7 @@ Watch does: `getCallingPackage()` is `com.gathin.tvhome` and `PackageManager.che
 
 - Off by default: `home_shelves` in `config.xml` or a theme's `config.json`. Needs `module_cards` (on by
   default). Nothing is read and nothing is added to the screen while it is off.
-- Rows come only from cards in the Shown state, in the cards' order: at most 4 rows in all, 20 titles in a
+- Rows come only from cards in the Shown state, in the cards' order: at most 6 rows in all, 20 titles in a
   row. A card shown, hidden, installed or removed brings its rows or takes them away.
 - Reads run on one background thread: after Home's first frame, on a return to Home when the last read is
   more than 2 minutes old or the module reported a change, and when the cards change. No timer and no

@@ -324,6 +324,15 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, S
     private final Set<String> observedShelves = new HashSet<>();
     private android.database.ContentObserver shelfObserver;
     private final Runnable readShelves = this::readShelves;
+    /** clock_line: the line under the clock, or null while the switch is off (nothing is read then). */
+    private TextView clockLine;
+    private int clockLineLoad;
+    private long clockLineReadAt;
+    private boolean clockLineDirty = true;
+    private String clockLineAuthority;
+    private final Set<String> clockLineLogged = new HashSet<>();
+    private android.database.ContentObserver clockLineObserver;
+    private final Runnable readClockLine = this::readClockLine;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     /** Refreshes the network pill when the connection changes: at boot Wi-Fi often connects after Home is shown. */
@@ -534,6 +543,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, S
             lunarDate.setTextSize(11f);
             date.setPadding(0, (int) (4 * density), 0, 0);
         }
+        // After moveDateBelowClock: the line goes under the clock's row, and under the date when that moved there.
+        if (cfg.clockLine && cfg.moduleCards) setUpClockLine();
         vpnApp = cfg.vpnApp;
         vpnPill = cfg.vpnPill && !cfg.topMenu;
         btnVpn = findViewById(R.id.btnVpn);
@@ -1025,6 +1036,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, S
         wallpaperPlayer.start();
         handler.postDelayed(minuteTick, MINUTE_MS);
         requestShelves();
+        requestClockLine();
         if (festive && diya != null) {
             diya.start();
             LocalDate today = LocalDate.now();
@@ -1155,8 +1167,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, S
         lastFocusedKey = returnKey;
         lastFocused = returnSlot;
         packageSequence = currentPackageSequence(packageSequence);
-        if (shelves != null) {
-            // A card shown, hidden, installed or removed: its rows come or go with it.
+        if (shelves != null || clockLine != null) {
+            // A card shown, hidden, installed or removed: its rows and its line come or go with it.
             StringBuilder shown = new StringBuilder();
             for (Cards.Card c : cards.isEmpty() ? none : CardFeature.run(() -> Cards.shown(cards), none)) {
                 shown.append(c.component.flattenToShortString()).append(' ');
@@ -1164,7 +1176,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, S
             if (!shown.toString().equals(shelfCards)) {
                 shelfCards = shown.toString();
                 shelvesDirty = true;
+                clockLineDirty = true;
                 requestShelves();
+                requestClockLine();
             }
         }
     }
@@ -1207,6 +1221,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, S
         super.onPause();
         resumed = false;
         handler.removeCallbacks(readShelves);
+        handler.removeCallbacks(readClockLine);
         returnToShelves = shelves != null && shelves.hasFocus();
         root.removeCallbacks(showIdleClock);
         endReorder();   // Home or another app while reordering keeps the order so far
@@ -1274,6 +1289,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, S
         shelfLoad++;   // a read still running is dropped
         handler.removeCallbacks(readShelves);
         if (shelfObserver != null) getContentResolver().unregisterContentObserver(shelfObserver);
+        clockLineLoad++;
+        handler.removeCallbacks(readClockLine);
+        if (clockLineObserver != null) getContentResolver().unregisterContentObserver(clockLineObserver);
         unregisterReceiver(packageReceiver);
         wallpaperPlayer.close();
         ConnectivityManager cm = getSystemService(ConnectivityManager.class);
@@ -2440,6 +2458,14 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, S
         if (rootH == placedRootH && rowsH == placedRowsH) return;
         placedRootH = rootH;
         placedRowsH = rowsH;
+        // At rest the rows are laid out where they show, their first heading under the apps, rather than moved there:
+        // focus search goes by layout positions, and rows laid out at the top of the screen answered Up from the dock.
+        FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) shelves.getLayoutParams();
+        int rest = rootH - shelfPeek;
+        if (lp.topMargin != rest) {
+            lp.topMargin = rest;
+            root.post(() -> shelves.setLayoutParams(lp));   // not from inside this layout pass
+        }
         pageTo(shelves.focusedRow(), false);
     }
 
@@ -2451,16 +2477,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, S
                 root.getHeight() - Math.round(SHELF_BOTTOM_DP * density));
         if (animate && target == pageOffset) return;
         pageOffset = target;
-        View[] moving = {page, racePanel, shelves};
-        float[] to = {target, target, rest + target};
-        for (int i = 0; i < moving.length; i++) {
-            View v = moving[i];
+        for (View v : new View[]{page, racePanel, shelves}) {
             v.animate().cancel();
             if (animate && animations) {
-                v.animate().translationY(to[i]).setDuration(reducedMotion ? Motion.REDUCED_MS : PAGE_MS)
+                v.animate().translationY(target).setDuration(reducedMotion ? Motion.REDUCED_MS : PAGE_MS)
                         .setInterpolator(pageEase).start();
             } else {
-                v.setTranslationY(to[i]);
+                v.setTranslationY(target);
             }
         }
     }
@@ -2531,6 +2554,94 @@ public class MainActivity extends Activity implements AppAdapter.TileListener, S
         } catch (RuntimeException e) {
             observedShelves.remove(authority);   // the provider went away since the read
         }
+    }
+
+    // ---- clock_line ------------------------------------------------------------------------------
+
+    /** clock_line: a line under the clock (and the date, when date_below_clock put it there), empty until read. */
+    private void setUpClockLine() {
+        clockLine = new TextView(this);
+        clockLine.setGravity(Gravity.LEFT);
+        clockLine.setSingleLine(true);
+        clockLine.setEllipsize(TextUtils.TruncateAt.END);
+        clockLine.setTextColor(0xD9FFFFFF);
+        clockLine.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+        clockLine.setTypeface(UiFont.get(this, R.string.font_regular));
+        clockLine.setLetterSpacing(0.04f);
+        clockLine.setIncludeFontPadding(false);
+        clockLine.setVisibility(View.GONE);
+        // Under the clock's block, where show_stats' line goes (and under that line when it shows), not inside the
+        // block: the top bar is aligned to the block's bottom and would drop below the clock.
+        RelativeLayout.LayoutParams lp = new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.addRule(RelativeLayout.BELOW, R.id.stats);
+        lp.addRule(RelativeLayout.ALIGN_START, R.id.leftBlock);
+        lp.setMarginStart(Math.round(4 * density));
+        lp.topMargin = Math.round(4 * density);
+        ((RelativeLayout) clockBlock.getParent()).addView(clockLine, lp);
+        clockLineObserver = new android.database.ContentObserver(handler) {
+            @Override
+            public void onChange(boolean selfChange) {
+                clockLineDirty = true;
+                if (!resumed) return;
+                long wait = SHELF_CHANGE_GAP_MS - (SystemClock.uptimeMillis() - clockLineReadAt);
+                handler.removeCallbacks(readClockLine);
+                handler.postDelayed(readClockLine, Math.max(SHELF_CHANGE_DELAY_MS, wait));
+            }
+        };
+    }
+
+    /** Reads the line again soon when it may have changed or the last read is getting old; only while resumed. */
+    private void requestClockLine() {
+        if (clockLine == null || !resumed || !HomeShelves.working()) return;
+        if (!clockLineDirty && clockLineReadAt != 0 && SystemClock.uptimeMillis() - clockLineReadAt < SHELF_REREAD_MS) return;
+        handler.removeCallbacks(readClockLine);
+        handler.postDelayed(readClockLine, SHELF_DELAY_MS);
+    }
+
+    private void readClockLine() {
+        if (clockLine == null || isDestroyed() || !HomeShelves.working()) return;
+        clockLineDirty = false;
+        clockLineReadAt = SystemClock.uptimeMillis();
+        final int load = ++clockLineLoad;
+        final List<Cards.Card> none = Collections.emptyList();
+        final List<Cards.Card> shown = cards.isEmpty() ? none : CardFeature.run(() -> Cards.shown(cards), none);
+        if (shown.isEmpty()) {
+            showClockLine(load, null);
+            return;
+        }
+        final Context app = getApplicationContext();
+        try {
+            HomeShelves.loader().execute(() -> {
+                ClockLine.Line line;
+                try {
+                    line = ClockLine.read(app, shown, clockLineLogged);
+                } catch (Exception | LinkageError e) {
+                    HomeShelves.fail(e);
+                    line = null;
+                }
+                final ClockLine.Line result = line;
+                handler.post(() -> showClockLine(load, result));
+            });
+        } catch (RuntimeException e) {
+            HomeShelves.fail(e);
+        }
+    }
+
+    private void showClockLine(int load, ClockLine.Line line) {
+        if (load != clockLineLoad || clockLine == null || isDestroyed()) return;
+        if (line != null && !line.authority.equals(clockLineAuthority)) {
+            // Listen to the module that has the line now (once per provider: the observer can't be told apart).
+            try {
+                getContentResolver().registerContentObserver(ClockLine.uri(line.authority), false, clockLineObserver);
+                clockLineAuthority = line.authority;
+            } catch (RuntimeException ignored) {
+                // The provider went away since the read; the next return to Home reads again.
+            }
+        }
+        String text = line == null || !HomeShelves.working() ? "" : line.text;
+        clockLine.setText(text);
+        clockLine.setVisibility(text.isEmpty() ? View.GONE : View.VISIBLE);
     }
 
     /** Memory pressure while Home is away: the pictures go (the next read decodes them again), the rows stay. */

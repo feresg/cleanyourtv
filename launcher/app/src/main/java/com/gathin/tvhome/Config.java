@@ -179,6 +179,8 @@ final class Config {
     final int homeRows;
     /** Rows of pictures under the apps, read from a module whose card is shown (home_shelves). */
     final boolean homeShelves;
+    /** A line under the clock (the weather), read from a module whose card is shown (clock_line). */
+    final boolean clockLine;
     /** The Settings button opens the quick settings panel instead of the TV's Settings (settings_key_panel). */
     final boolean settingsKeyPanel;
     /** Home puts the remote's accessibility helpers back after a force stop (restore_key_services; ServiceRepair). */
@@ -278,7 +280,7 @@ final class Config {
                    boolean keyFilter, boolean dockGlass, String glowStyle, boolean wallpaperCaptions,
                    boolean handleViewInputs, boolean tileMenu, boolean dockEvenPadding, boolean dockBand, boolean cinematicDots, boolean cinematicWhiteFocus, boolean wifiStatusColor, int cinematicScrim, int cinematicArt,
                    Map<String, Set<String>> wallpaperMoods, boolean gamepadPassthrough, boolean consumeVolumeKeys, boolean powerOnHome, boolean homeLongPressHome, boolean wifiStatusWarnings, List<String> topBarApps, boolean showGreeting, boolean headerWhite, boolean clockWallpaper, int clockWallpaperDim, boolean clockGlow, String glassStyle, boolean singleRow, boolean dockBandAll, boolean lunarDate, int lunarUtcOffset, boolean dateBelowClock, boolean vpnPill, String locale, boolean powerOnHomeAlways,
-                   int homeRows, boolean homeShelves) {
+                   int homeRows, boolean homeShelves, boolean clockLine) {
         this.handleViewInputs = handleViewInputs;
         this.tileMenu = tileMenu;
         this.inputKeycodes = inputKeycodes;
@@ -375,6 +377,7 @@ final class Config {
         this.powerOnHomeAlways = powerOnHomeAlways;
         this.homeRows = homeRows;
         this.homeShelves = homeShelves;
+        this.clockLine = clockLine;
         this.wifiStatusWarnings = wifiStatusWarnings;
         this.topBarApps = Collections.unmodifiableList(topBarApps);
         this.showGreeting = showGreeting;
@@ -484,6 +487,7 @@ final class Config {
         boolean powerOnHomeAlways = res.getBoolean(R.bool.power_on_home_always);
         int homeRows = res.getInteger(R.integer.home_rows);
         boolean homeShelves = res.getBoolean(R.bool.home_shelves);
+        boolean clockLine = res.getBoolean(R.bool.clock_line);
         boolean dockGlass = res.getBoolean(R.bool.dock_glass);
         boolean dockEvenPadding = res.getBoolean(R.bool.dock_even_padding);
         boolean dockBand = res.getBoolean(R.bool.dock_band);
@@ -590,6 +594,7 @@ final class Config {
             powerOnHomeAlways = bool(json, "power_on_home_always", powerOnHomeAlways);
             homeRows = integer(json, "home_rows", homeRows, 0, 3);
             homeShelves = bool(json, "home_shelves", homeShelves);
+            clockLine = bool(json, "clock_line", clockLine);
             dockGlass = bool(json, "dock_glass", dockGlass);
             dockEvenPadding = bool(json, "dock_even_padding", dockEvenPadding);
             dockBand = bool(json, "dock_band", dockBand);
@@ -678,7 +683,7 @@ final class Config {
                 dockBand, cinematicDots, cinematicWhiteFocus, wifiStatusColor, cinematicScrim, cinematicArt, wallpaperMoods, gamepadPassthrough,
                 consumeVolumeKeys, powerOnHome, homeLongPressHome, wifiStatusWarnings, topBarApps, showGreeting, headerWhite, clockWallpaper,
                 Math.max(0, Math.min(90, clockWallpaperDim)), clockGlow, glassStyle, singleRow && dockRow, dockBandAll, lunar, lunarOffset,
-                dateBelowClock, vpnPill, locale, powerOnHomeAlways, homeRows, homeShelves);
+                dateBelowClock, vpnPill, locale, powerOnHomeAlways, homeRows, homeShelves, clockLine);
     }
 
     /**
