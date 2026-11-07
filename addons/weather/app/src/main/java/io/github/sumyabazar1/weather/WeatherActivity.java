@@ -30,7 +30,7 @@ import java.util.concurrent.Executors;
  * does nothing in the background. The place is chosen once with a search and kept in the app's preferences.
  */
 public final class WeatherActivity extends Activity {
-    private static final String PREFS = "place";
+    static final String PREFS = "place";
 
     private final ExecutorService io = Executors.newSingleThreadExecutor();
     private final Handler main = new Handler(Looper.getMainLooper());
@@ -102,7 +102,10 @@ public final class WeatherActivity extends Activity {
             Forecast.Report result = report;
             main.post(() -> {
                 if (isDestroyed()) return;
-                if (result != null) show(result);
+                if (result != null) {
+                    show(result);
+                    LineProvider.save(this, result);   // the launcher's line under its clock (clock_line)
+                }
                 else if (!shown) message.setText(R.string.offline);
                 main.postDelayed(tick, result != null ? Forecast.REFRESH_MS : Forecast.RETRY_MS);
             });

@@ -95,6 +95,15 @@ public class ShelvesTest {
     }
 
     @Test
+    public void homeGetsANewRowForEachCountryAskedFor() {
+        List<String> regions = Arrays.asList("US", "GB", "FR");
+        assertEquals(Arrays.asList("US", "FR"), Config.homeRegions("us, fr,FR,xx1", regions));
+        assertEquals("the first country by default", Collections.singletonList("US"), Config.homeRegions("", regions));
+        assertEquals(Collections.singletonList("US"), Config.homeRegions(null, regions));
+        assertEquals("new_fr", Shelves.newId("FR"));
+    }
+
+    @Test
     public void onlyTheLauncherSignedLikeWatchMayRead() {
         assertTrue(ShelfProvider.allowed("com.gathin.tvhome", PackageManager.SIGNATURE_MATCH));
         assertFalse(ShelfProvider.allowed("com.gathin.tvhome", PackageManager.SIGNATURE_NO_MATCH));

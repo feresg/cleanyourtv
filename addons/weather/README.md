@@ -15,7 +15,8 @@ sky-blue glow; on any other Android TV home it is an ordinary app.
 - **Snow, not rain, near freezing.** The models type precipitation by the air temperature and call snow
   "light rain" at 1 °C (ICON and GFS did, in a Ulaanbaatar blizzard). The app decides by the wet-bulb
   temperature instead, which counts how dry the air is: at 1 °C or below, rain and drizzle are shown as snow.
-- It reads Open-Meteo only while the page is on screen, every 30 minutes, or 5 minutes after a failure.
+- It reads Open-Meteo while the page is on screen, every 30 minutes, or 5 minutes after a failure; and for the
+  launcher's line under its clock, when the launcher asks and the last reading is over 30 minutes old.
 - Degrees Celsius by default (Fahrenheit is an option below), English words; day names follow the TV's language.
 
 ## Options
@@ -32,11 +33,22 @@ Set in `app/src/main/res/values/options.xml` before building. With the defaults 
 
 ![A week, with humidity and wind](https://raw.githubusercontent.com/majnioui/cleanyourtv-contrib/pr-assets/addon-weather-week/weather-options.png)
 
+## The line under Home's clock
+
+With the launcher's `clock_line` switch on (and Weather's card shown), Home shows the weather now under its clock:
+"12° · Partly cloudy · Paris", in the unit the options choose. The launcher has no network access, so Weather reads
+it: `LineProvider` answers from the last reading, and when that is more than 30 minutes old it reads Open-Meteo again
+on a thread of its own and tells Home. A failed read is tried again 5 minutes later at the earliest, and a reading
+over 3 hours old is not shown. Opening the weather page updates the line too. There is no background service or timer.
+
 ## Permissions
 
 | Permission | Why |
 |---|---|
 | `INTERNET` | Open-Meteo: the place search, the weather and the air quality. |
+
+- **The line for Home:** `LineProvider` is exported and read-only: one line with the weather now in the chosen city,
+  kept in the app's own storage. Any app may read it; it gives away no more than the city's weather.
 
 That is all. What is sent: the city name you type in the search, then that place's latitude and longitude. No
 account, no telemetry, no ads, no background service, no location permission. The chosen city stays in the

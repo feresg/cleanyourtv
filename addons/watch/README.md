@@ -81,12 +81,13 @@ it change. A new `trakt_client_id` signs Trakt out.
 | `regions` | `["US", "GB", "FR"]` | Countries for the TMDB rows, two-letter codes (`UK` is read as `GB`) |
 | `language` | `en-US` | Language of titles and overviews from TMDB, for example `fr-FR` |
 | `home_shelves` | all four | The rows Watch offers the launcher's Home, in order: `up_next`, `continue`, `trending`, `new` |
+| `home_regions` | the first of `regions` | The countries that each get a "New" row on Home, in order, e.g. `["US", "FR"]`; the Watch screen keeps every country in `regions` |
 
 ## Rows on Home
 
 With the launcher's `home_shelves` switch on, Home shows Watch's rows under the app rows: Up next and Continue
-watching (when Trakt is signed in), Trending this week, and New on streaming in your first country (French films and
-series for France). OK on a card opens that title's page here, and Back returns to Home.
+watching (when Trakt is signed in), Trending this week, and New on streaming for each country in `home_regions`
+(the first of `regions` unless you list them; French films and series for France). OK on a card opens that title's page here, and Back returns to Home.
 
 The launcher has no network access, so Watch does the reading. `ShelfProvider` hands Home the rows from a copy on the
 TV and their pictures (TMDB backdrops at w300) from Watch's cache. When Home opens and that copy is more than 30
@@ -108,7 +109,7 @@ signed with the same key, or Watch refuses Home. The launcher's side is describe
   its login and the Umbrella address.
 - **Plain HTTP:** allowed for `127.0.0.1` and `localhost` only (`res/xml/network.xml`). Everything else is HTTPS.
 - **Storage:** keys and tokens stay in the app's own storage (backups are off). The Watch screen keeps posters in
-  memory only. Home's rows are kept in `shelves.json` in the app's own files, their pictures (at most 80, the ones no
+  memory only. Home's rows are kept in `shelves.json` in the app's own files, their pictures (20 per row, the ones no
   row uses deleted at each read) in its cache.
 - **Home's rows:** `ShelfProvider` is exported so the launcher can read it, and answers only the launcher
   (`com.gathin.tvhome`) signed with the same key as Watch, checked on every call; any other app is refused. It is

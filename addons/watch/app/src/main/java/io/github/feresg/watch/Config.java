@@ -36,6 +36,8 @@ final class Config {
     final String language;
     /** The rows Watch offers Home, in order (Shelves.ALL by default). */
     final List<String> homeShelves;
+    /** The countries that get a "New" row on Home, in order: the first of regions unless home_regions says. */
+    final List<String> homeRegions;
 
     Config(String tmdbToken, String traktId, String traktSecret, String traktRedirect, int kodiPort, String kodiUser,
            String kodiPass, List<String> regions, String language) {
@@ -45,6 +47,12 @@ final class Config {
 
     Config(String tmdbToken, String traktId, String traktSecret, String traktRedirect, int kodiPort, String kodiUser,
            String kodiPass, List<String> regions, String language, List<String> homeShelves) {
+        this(tmdbToken, traktId, traktSecret, traktRedirect, kodiPort, kodiUser, kodiPass, regions, language, homeShelves,
+                regions.isEmpty() ? new ArrayList<>() : regions.subList(0, 1));
+    }
+
+    Config(String tmdbToken, String traktId, String traktSecret, String traktRedirect, int kodiPort, String kodiUser,
+           String kodiPass, List<String> regions, String language, List<String> homeShelves, List<String> homeRegions) {
         this.tmdbToken = tmdbToken;
         this.traktId = traktId;
         this.traktSecret = traktSecret;
@@ -55,6 +63,7 @@ final class Config {
         this.regions = regions;
         this.language = language;
         this.homeShelves = homeShelves;
+        this.homeRegions = homeRegions;
     }
 
     boolean hasTmdb() {
@@ -76,11 +85,12 @@ final class Config {
 
     static Config load(Context c) {
         SharedPreferences p = prefs(c);
+        List<String> regions = regions(p.getString("regions", ""));
         return new Config(p.getString("tmdb_token", ""), p.getString("trakt_client_id", ""),
                 p.getString("trakt_client_secret", ""), p.getString("trakt_redirect_uri", DEFAULT_TRAKT_REDIRECT),
                 p.getInt("kodi_port", 8080), p.getString("kodi_user", "kodi"),
-                p.getString("kodi_pass", ""), regions(p.getString("regions", "")), p.getString("language", "en-US"),
-                homeShelves(p.getString("home_shelves", null)));
+                p.getString("kodi_pass", ""), regions, p.getString("language", "en-US"),
+                homeShelves(p.getString("home_shelves", null)), homeRegions(p.getString("home_regions", ""), regions));
     }
 
     /** "up_next,trending" to the known row ids it names, in order; all of them when unset (null). */
@@ -92,6 +102,18 @@ final class Config {
             String t = id.trim();
             if (known.contains(t) && !out.contains(t)) out.add(t);
         }
+        return out;
+    }
+
+    /** home_regions ("US,FR") as two-letter codes, in order; the first of regions when it names none. */
+    static List<String> homeRegions(String csv, List<String> regions) {
+        List<String> out = new ArrayList<>();
+        for (String r : csv == null ? new String[0] : csv.split(",")) {
+            String code = r.trim().toUpperCase(java.util.Locale.ROOT);
+            if (code.equals("UK")) code = "GB";
+            if (code.matches("[A-Z]{2}") && !out.contains(code)) out.add(code);
+        }
+        if (out.isEmpty() && !regions.isEmpty()) out.add(regions.get(0));
         return out;
     }
 
@@ -124,6 +146,12 @@ final class Config {
                 StringBuilder csv = new StringBuilder();
                 for (int i = 0; a != null && i < a.length(); i++) csv.append(i > 0 ? "," : "").append(a.optString(i));
                 e.putString("home_shelves", csv.toString());
+            }
+            if (o.has("home_regions")) {
+                JSONArray a = o.optJSONArray("home_regions");
+                StringBuilder csv = new StringBuilder();
+                for (int i = 0; a != null && i < a.length(); i++) csv.append(i > 0 ? "," : "").append(a.optString(i));
+                e.putString("home_regions", a == null ? o.optString("home_regions") : csv.toString());
             }
             if (o.has("regions")) {
                 JSONArray a = o.optJSONArray("regions");

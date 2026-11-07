@@ -137,14 +137,9 @@ final class Shelves {
                         titles = tmdb.list(tmdb.trending(), null);
                         break;
                     case NEW:
-                        if (!c.hasTmdb() || c.regions.isEmpty()) continue;
-                        String region = c.regions.get(0);
-                        String local = Tmdb.localAdjective(region);
-                        heading = (local.isEmpty() ? "New on streaming" : "New " + local + "films and series")
-                                + " · " + MainActivity.country(region);
-                        titles = interleave(tmdb.list(tmdb.newMovies(region, today), "movie"),
-                                tmdb.list(tmdb.newSeries(region, today), "tv"));
-                        break;
+                        // One row per home_regions country, each a row of its own on Home.
+                        if (c.hasTmdb()) for (String region : c.homeRegions) addNew(out, tmdb, region, today);
+                        continue;
                     default:
                         continue;
                 }
@@ -155,6 +150,24 @@ final class Shelves {
             }
         }
         return out;
+    }
+
+    /** "New on streaming" for one country (its own productions where its language isn't English), id new_<code>. */
+    private static void addNew(List<Shelf> out, Tmdb tmdb, String region, LocalDate today) {
+        try {
+            String local = Tmdb.localAdjective(region);
+            String heading = (local.isEmpty() ? "New on streaming" : "New " + local + "films and series")
+                    + " · " + MainActivity.country(region);
+            List<Title> unique = dedupe(interleave(tmdb.list(tmdb.newMovies(region, today), "movie"),
+                    tmdb.list(tmdb.newSeries(region, today), "tv")));
+            if (!unique.isEmpty()) out.add(new Shelf(newId(region), heading, unique));
+        } catch (JSONException e) {
+            // That country's row is left out this time.
+        }
+    }
+
+    static String newId(String region) {
+        return NEW + "_" + region.toLowerCase(java.util.Locale.ROOT);
     }
 
     /** Films and series taken in turn, so one row shows both. */

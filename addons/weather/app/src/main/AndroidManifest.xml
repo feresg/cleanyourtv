@@ -29,6 +29,15 @@
                 <category android:name="com.gathin.tvhome.category.DOCK_CARD" />
             </intent-filter>
             <meta-data android:name="com.gathin.tvhome.card" android:resource="@xml/module_card" />
+            <!-- The launcher's clock_line switch reads the line under its clock from this provider (LineProvider). -->
+            <meta-data android:name="com.gathin.tvhome.clock_line" android:value="${applicationId}.clockline" />
         </activity>
+
+        <!-- Read-only: one line, the weather now, for the launcher's clock_line. A city's weather is no secret, so any
+             app may read it; it fetches at most every 30 minutes, and only when asked. -->
+        <provider
+            android:name=".LineProvider"
+            android:authorities="${applicationId}.clockline"
+            android:exported="true" />
     </application>
 </manifest>
