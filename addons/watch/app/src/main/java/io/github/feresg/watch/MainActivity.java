@@ -237,14 +237,16 @@ public class MainActivity extends Activity {
             case TRENDING:
                 rows.add(new Shelf("Trending this week", tmdb.list(tmdb.trending(), null)));
                 for (String r : c.regions) {
-                    rows.add(new Shelf("Popular films on streaming · " + country(r), tmdb.list(tmdb.popularStreaming("movie", r), "movie")));
-                    rows.add(new Shelf("Popular series on streaming · " + country(r), tmdb.list(tmdb.popularStreaming("tv", r), "tv")));
+                    String local = Tmdb.localAdjective(r);
+                    rows.add(new Shelf("Popular " + local + "films on streaming · " + country(r), tmdb.list(tmdb.popularStreaming("movie", r), "movie")));
+                    rows.add(new Shelf("Popular " + local + "series on streaming · " + country(r), tmdb.list(tmdb.popularStreaming("tv", r), "tv")));
                 }
                 break;
             case NEW:
                 for (String r : c.regions) {
-                    rows.add(new Shelf("New films to stream or rent · " + country(r), tmdb.list(tmdb.newMovies(r, today), "movie")));
-                    rows.add(new Shelf("New series · " + country(r), tmdb.list(tmdb.newSeries(r, today), "tv")));
+                    String local = Tmdb.localAdjective(r);
+                    rows.add(new Shelf("New " + local + "films to stream or rent · " + country(r), tmdb.list(tmdb.newMovies(r, today), "movie")));
+                    rows.add(new Shelf("New " + local + "series · " + country(r), tmdb.list(tmdb.newSeries(r, today), "tv")));
                 }
                 break;
         }

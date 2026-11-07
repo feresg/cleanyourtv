@@ -73,6 +73,23 @@ public class TmdbTest {
     }
 
     @Test
+    public void franceShowsFrenchProductionsTitledInFrench() {
+        Tmdb tmdb = new Tmdb(config("abc"));
+        LocalDate day = LocalDate.of(2026, 11, 7);
+        for (String url : new String[]{tmdb.popularStreaming("movie", "FR"), tmdb.popularStreaming("tv", "FR"),
+                tmdb.newMovies("FR", day), tmdb.newSeries("FR", day)}) {
+            assertTrue(url, url.endsWith("&with_original_language=fr&language=fr-FR"));
+        }
+        for (String url : new String[]{tmdb.popularStreaming("movie", "US"), tmdb.newMovies("GB", day), tmdb.newSeries("US", day)}) {
+            assertTrue(url, url.endsWith("&language=en-US"));
+            assertTrue(url, !url.contains("with_original_language"));
+        }
+        assertEquals("French ", Tmdb.localAdjective("FR"));
+        assertEquals("", Tmdb.localAdjective("GB"));
+        assertEquals("de", Tmdb.localLanguage("AT"));
+    }
+
+    @Test
     public void regions() {
         assertEquals(java.util.Arrays.asList("US", "GB", "FR"), Config.regions("US, uk ,FR,US"));
         assertEquals(Config.DEFAULT_REGIONS, Config.regions(""));

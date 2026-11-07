@@ -14,6 +14,10 @@ Kodi or Umbrella.
 | Trending | Trending this week worldwide, then the most popular films and series on subscription streaming in each of your countries (US, UK and France by default) | TMDB |
 | New on streaming | Films released for digital in the last 45 days, and series started in the last 60 days that stream on a subscription, per country | TMDB |
 
+In a country whose language isn't English, its rows are that language's own productions, titled in it: France shows
+French films and series in French rather than a copy of the US and UK lists (`with_original_language=fr`,
+`language=fr-FR`).
+
 Moving along the tabs switches the page. OK on a poster opens the title over its backdrop:
 
 - **A film:** **Play in Umbrella** brings Kodi to the front and asks Umbrella to play it. Umbrella looks for

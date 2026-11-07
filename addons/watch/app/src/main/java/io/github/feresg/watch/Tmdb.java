@@ -24,6 +24,19 @@ final class Tmdb {
     static final int NEW_MOVIE_DAYS = 45;
     static final int NEW_SERIES_DAYS = 60;
 
+    /**
+     * A country's own language where it isn't English. Its rows show that language's productions, titled in it, so
+     * "France" means French films and series rather than a copy of the US and UK lists.
+     */
+    private static final Map<String, String> LOCAL_LANGUAGE = new HashMap<>();
+
+    static {
+        String[] pairs = {"FR", "fr", "BE", "fr", "LU", "fr", "DE", "de", "AT", "de", "ES", "es", "MX", "es", "AR", "es",
+                "CO", "es", "CL", "es", "IT", "it", "PT", "pt", "BR", "pt", "NL", "nl", "SE", "sv", "NO", "no", "DK", "da",
+                "FI", "fi", "PL", "pl", "TR", "tr", "JP", "ja", "KR", "ko", "IN", "hi", "CN", "zh", "TW", "zh"};
+        for (int i = 0; i < pairs.length; i += 2) LOCAL_LANGUAGE.put(pairs[i], pairs[i + 1]);
+    }
+
     private final Config config;
     /** Details already read this session, by "movie:123" or "tv:456". */
     private static final Map<String, JSONObject> DETAILS = Collections.synchronizedMap(new HashMap<>());
@@ -41,21 +54,43 @@ final class Tmdb {
     /** Popular on subscription streaming (flatrate) in a country, for "movie" or "tv". */
     String popularStreaming(String type, String region) {
         return API + "/discover/" + type + "?include_adult=false&sort_by=popularity.desc&watch_region=" + enc(region)
-                + "&with_watch_monetization_types=flatrate&language=" + enc(config.language);
+                + "&with_watch_monetization_types=flatrate" + regional(region);
     }
 
     /** Films released for digital viewing in a country over the last weeks, most popular first. */
     String newMovies(String region, LocalDate today) {
         return API + "/discover/movie?include_adult=false&sort_by=popularity.desc&region=" + enc(region)
                 + "&with_release_type=4&release_date.gte=" + today.minusDays(NEW_MOVIE_DAYS)
-                + "&release_date.lte=" + today + "&language=" + enc(config.language);
+                + "&release_date.lte=" + today + regional(region);
     }
 
     /** Series that started over the last weeks and stream on a subscription in a country, most popular first. */
     String newSeries(String region, LocalDate today) {
         return API + "/discover/tv?include_adult=false&sort_by=popularity.desc&watch_region=" + enc(region)
                 + "&with_watch_monetization_types=flatrate&first_air_date.gte=" + today.minusDays(NEW_SERIES_DAYS)
-                + "&first_air_date.lte=" + today + "&language=" + enc(config.language);
+                + "&first_air_date.lte=" + today + regional(region);
+    }
+
+    /**
+     * The end of a country's own row: in a non-English country, that language's productions titled in it
+     * ("&with_original_language=fr&language=fr-FR"); elsewhere the configured language.
+     */
+    private String regional(String region) {
+        String lang = localLanguage(region);
+        if (lang.isEmpty()) return "&language=" + enc(config.language);
+        return "&with_original_language=" + lang + "&language=" + enc(lang + "-" + region);
+    }
+
+    /** "fr" for FR, "" for an English-speaking or unlisted country. */
+    static String localLanguage(String region) {
+        String lang = LOCAL_LANGUAGE.get(region);
+        return lang == null ? "" : lang;
+    }
+
+    /** "French " for FR, "" where the rows aren't limited to one language: put before "films" and "series". */
+    static String localAdjective(String region) {
+        String lang = localLanguage(region);
+        return lang.isEmpty() ? "" : new java.util.Locale(lang).getDisplayLanguage(java.util.Locale.ENGLISH) + " ";
     }
 
     /** One list; type is null for the trending list, which says each item's type itself. */
