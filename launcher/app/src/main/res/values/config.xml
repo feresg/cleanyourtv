@@ -346,8 +346,9 @@
          as it is. Can also be set with "home_rows" in a theme. -->
     <integer name="home_rows">0</integer>
     <!-- Rows of pictures under the apps, from a module whose card is shown and which offers them (its card activity
-         names a provider in "com.gathin.tvhome.shelves" meta-data). The launcher reads them from that provider, with
-         no network of its own; OK opens the module at that item. Off by default; a theme can set "home_shelves". -->
+         names a provider of its own in "com.gathin.tvhome.shelves" meta-data; docs/specs/shelves.md). The launcher reads
+         them from that provider, with no network of its own; Down from the last app row goes into them and OK opens the
+         module at that title. Needs module_cards. Off by default; a theme can set "home_shelves". -->
     <bool name="home_shelves">false</bool>
 
     <!-- Grid rows left visible under the dock on the home screen. 0 = dock sits at the very bottom. Tiles shrink if

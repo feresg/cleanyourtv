@@ -94,7 +94,7 @@ import java.util.Set;
 /**
  * tvOS style home: black, a pinned dock row, an app grid, and one glass highlight that springs between tiles.
  */
-public class MainActivity extends Activity implements AppAdapter.TileListener {
+public class MainActivity extends Activity implements AppAdapter.TileListener, ShelvesView.Host {
     @Override
     protected void attachBaseContext(android.content.Context base) {
         super.attachBaseContext(LauncherLocale.wrap(base));   // locale
@@ -299,6 +299,31 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     private boolean libraryOkOpens;
     private boolean libraryFocusPending;
     private RecyclerView.OnScrollListener pendingFocusScroll;
+    /** home_shelves: the rows under the apps, or null while the switch is off (nothing is read then). */
+    private ShelvesView shelves;
+    /** The header and the grid, which move up together with the rows while a row has focus. */
+    private View page;
+    /** How far Home has moved up for the rows: 0 at rest, negative while a row has focus. */
+    private int pageOffset;
+    /** The rows' heading that shows under the apps at rest. */
+    private int shelfPeek;
+    /** Numbers the reads of the rows: only the latest one is shown. */
+    private int shelfLoad;
+    /** When the rows were last read (uptime), and whether they may have changed since. */
+    private long shelvesReadAt;
+    private boolean shelvesDirty = true;
+    /** The shown cards the rows were last read for, so a card shown or hidden reads them again. */
+    private String shelfCards = "";
+    /** Focus was in the rows when Home went away: it comes back there, as it does to the tile it left from. */
+    private boolean returnToShelves;
+    private boolean resumed;
+    /** The last read's pictures by URI (reused when they come back the same) and the modules already logged. */
+    private final Map<String, Bitmap> shelfPictures = new HashMap<>();
+    private final Set<String> shelfLogged = new HashSet<>();
+    /** Providers whose changes this Home listens for (registered once each, for the activity's life). */
+    private final Set<String> observedShelves = new HashSet<>();
+    private android.database.ContentObserver shelfObserver;
+    private final Runnable readShelves = this::readShelves;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     /** Refreshes the network pill when the connection changes: at boot Wi-Fi often connects after Home is shown. */
@@ -602,6 +627,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         Order savedOrder = Order.load(Order.file(this));
         adapter.setSavedOrder(Order.ranks(savedOrder, dockApps), Order.docked(savedOrder, dockApps));
         grid.setAdapter(adapter);
+        // home_shelves needs module cards: the rows come only from a module whose card the owner chose to show.
+        if (cfg.homeShelves && cfg.moduleCards) setUpShelves();
 
         // tvOS layout: push the dock row towards the bottom of the screen, leaving room for
         // rows_below_dock grid rows under it; the rest of the grid stays below until you press Down.
@@ -611,6 +638,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             // Item height follows the tile size, which follows the columns and the rows that must fit (AppAdapter.tileWidthPx).
             int inner = (r - l) - grid.getPaddingLeft() - grid.getPaddingRight();
             int tileW = AppAdapter.tileWidthPx(inner, h, COLUMNS, rowsBelowDock, cfg.dockTitle, cfg.dockRow, density);
+            // The rows' first card lines up with the first column's tile (centred in its cell).
+            if (shelves != null) {
+                shelves.setSide(page.getPaddingLeft() + grid.getPaddingLeft() + Math.max(0, (inner / COLUMNS - tileW) / 2));
+            }
             int itemH = AppAdapter.itemHeightPx(AppAdapter.tileHeightPx(tileW), density);
             int dockRow = itemH + (int) (AppAdapter.DOCK_EXTRA_DP * density);   // item height plus DockDecoration offsets
             int gridRows = itemH * rowsBelowDock;
@@ -814,6 +845,11 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         getWindow().getDecorView().getViewTreeObserver().addOnGlobalFocusChangeListener((oldF, newF) -> {
             boolean onTile = newF != null && newF.getId() == R.id.card;
             if (!onTile) hideGlass();
+            // Focus left the rows (Up, Back, Home, a rebuild): Home comes back down with the apps in place.
+            if (shelves != null && pageOffset != 0 && !shelves.hasFocus()) {
+                pageTo(-1, true);
+                shelves.toStart();
+            }
         });
 
         packageFilter.addAction(Intent.ACTION_PACKAGE_ADDED);
@@ -913,6 +949,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         if (intent == null || !intent.hasCategory(Intent.CATEGORY_HOME)) return;
         grid.scrollToPosition(0);
         lastFocused = 0;
+        returnToShelves = false;
         lastFocusedKey = adapter.getItemCount() > 0 ? adapter.keyAt(0) : null;
         if (stopped) {
             tileRefresh.onHomeAgain();
@@ -940,6 +977,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onResume() {
         super.onResume();
+        resumed = true;
         // A festival that started or ended while Home was in the background: rebuild with or without it.
         if (festive != festival.active(LocalDate.now())) {
             recreate();
@@ -986,6 +1024,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         sky.update();
         wallpaperPlayer.start();
         handler.postDelayed(minuteTick, MINUTE_MS);
+        requestShelves();
         if (festive && diya != null) {
             diya.start();
             LocalDate today = LocalDate.now();
@@ -1116,6 +1155,18 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         lastFocusedKey = returnKey;
         lastFocused = returnSlot;
         packageSequence = currentPackageSequence(packageSequence);
+        if (shelves != null) {
+            // A card shown, hidden, installed or removed: its rows come or go with it.
+            StringBuilder shown = new StringBuilder();
+            for (Cards.Card c : cards.isEmpty() ? none : CardFeature.run(() -> Cards.shown(cards), none)) {
+                shown.append(c.component.flattenToShortString()).append(' ');
+            }
+            if (!shown.toString().equals(shelfCards)) {
+                shelfCards = shown.toString();
+                shelvesDirty = true;
+                requestShelves();
+            }
+        }
     }
 
     /**
@@ -1126,10 +1177,13 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         final boolean returnToLibrary = libraryFocusPending;
         final String returnKey = lastFocusedKey;
         final int returnSlot = lastFocused;
+        // Back from a title opened in the rows: to that card again, not to the tile above it.
+        final boolean toShelves = returnToShelves;
+        returnToShelves = false;
         grid.post(() -> {
             int pos = adapter.positionOf(returnKey);
             if (returnToLibrary || libraryFocusPending) focusLibrary();
-            else focusTile(pos >= 0 ? pos : returnSlot);
+            else if (!(toShelves && shelves != null && shelves.focusLast())) focusTile(pos >= 0 ? pos : returnSlot);
             tilesReady = true;
             startPendingSettingsReorder();
             showCardPrompt();
@@ -1151,6 +1205,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onPause() {
         super.onPause();
+        resumed = false;
+        handler.removeCallbacks(readShelves);
+        returnToShelves = shelves != null && shelves.hasFocus();
         root.removeCallbacks(showIdleClock);
         endReorder();   // Home or another app while reordering keeps the order so far
         wallpaperPlayer.stop();
@@ -1198,6 +1255,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         heroArtKey = null;
         wallpaperPlayer.releaseForMemoryPressure();
         tileRefresh.invalidate();
+        if (shelves != null) releaseShelfPictures();
     }
 
     @Override
@@ -1213,6 +1271,9 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        shelfLoad++;   // a read still running is dropped
+        handler.removeCallbacks(readShelves);
+        if (shelfObserver != null) getContentResolver().unregisterContentObserver(shelfObserver);
         unregisterReceiver(packageReceiver);
         wallpaperPlayer.close();
         ConnectivityManager cm = getSystemService(ConnectivityManager.class);
@@ -1583,7 +1644,8 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
 
     @Override
     public void onBackPressed() {
-        // Home screen: Back goes nowhere.
+        // Home screen: Back goes nowhere, except out of home_shelves' rows to the apps.
+        if (shelves != null && shelves.hasFocus()) onShelvesExit();
     }
 
     // ---- glass highlight -------------------------------------------------------------------------
@@ -2251,7 +2313,10 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             // One row: Up leaves for the top bar, Down has nowhere to go, and Left/Right walk the whole row,
             // stopping at its two ends (the default focus search scrolls the row to the next tile).
             if (keyCode == KeyEvent.KEYCODE_DPAD_UP) return false;
-            if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) return true;
+            if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                if (focusShelves()) grid.playSoundEffect(SoundEffectConstants.NAVIGATION_DOWN);
+                return true;
+            }
             boolean forward = rtlAppGrid ? keyCode == KeyEvent.KEYCODE_DPAD_LEFT : keyCode == KeyEvent.KEYCODE_DPAD_RIGHT;
             int last = adapter.focusablePosition(count - 1);
             if (forward && position >= last) {
@@ -2280,6 +2345,7 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
             int lastRowStart = ((count - 1) / COLUMNS) * COLUMNS;
             if (position >= lastRowStart) {
                 if (adapter.isLibraryAt(count)) focusLibrary();
+                else if (focusShelves()) grid.playSoundEffect(SoundEffectConstants.NAVIGATION_DOWN);
                 return true;
             }
             target = Math.min(position + COLUMNS, count - 1);
@@ -2295,6 +2361,184 @@ public class MainActivity extends Activity implements AppAdapter.TileListener {
         libraryFocusPending = false;
         hideGlass();
         hideHero();
+    }
+
+    @Override public void onLibraryDown() {
+        if (focusShelves()) grid.playSoundEffect(SoundEffectConstants.NAVIGATION_DOWN);
+    }
+
+    // ---- home_shelves ----------------------------------------------------------------------------
+
+    /** The first row's heading that shows under the apps at rest; where a focused row's top sits on screen; the room
+     *  kept under the last row. */
+    private static final float SHELF_PEEK_DP = 44f, SHELF_FOCUS_Y_DP = 150f, SHELF_BOTTOM_DP = 8f;
+    private static final int PAGE_MS = 260;
+    /** The first read waits for Home's first frame; a change the module reports is read a moment later; a return
+     *  to Home reads again only when the last read is older than SHELF_REREAD_MS (the module keeps its own cache). */
+    private static final long SHELF_DELAY_MS = 400, SHELF_CHANGE_DELAY_MS = 300, SHELF_REREAD_MS = 2 * 60_000L,
+            SHELF_CHANGE_GAP_MS = 10_000L;
+    private final android.view.animation.Interpolator pageEase = new android.view.animation.DecelerateInterpolator(1.6f);
+    /** The screen and rows' heights the rows were last placed for (placeShelves). */
+    private int placedRootH = -1, placedRowsH = -1;
+
+    /**
+     * home_shelves: the rows go in the root, below the apps. At rest only their first heading shows, in room the
+     * grid leaves at the bottom; while a row has focus Home moves up with them (pageTo), the way a TV home scrolls.
+     */
+    private void setUpShelves() {
+        View gridFrame = (View) grid.getParent();
+        page = (View) gridFrame.getParent();
+        shelfPeek = Math.round(SHELF_PEEK_DP * density);
+        LinearLayout.LayoutParams flp = (LinearLayout.LayoutParams) gridFrame.getLayoutParams();
+        flp.bottomMargin = shelfPeek;
+        gridFrame.setLayoutParams(flp);
+        shelves = new ShelvesView(this, this, density, animations && !reducedMotion);
+        root.addView(shelves, root.indexOfChild(glass), new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.TOP));
+        View.OnLayoutChangeListener place = (v, l, t, r, b, ol, ot, or, ob) -> placeShelves();
+        root.addOnLayoutChangeListener(place);
+        shelves.addOnLayoutChangeListener(place);
+        shelfObserver = new android.database.ContentObserver(handler) {
+            @Override
+            public void onChange(boolean selfChange) {
+                // The module read its rows again. In the background only noted: the next return to Home reads them.
+                shelvesDirty = true;
+                if (!resumed) return;
+                // At most one read per SHELF_CHANGE_GAP_MS, so a module that keeps announcing changes can't keep
+                // Home reading.
+                long wait = SHELF_CHANGE_GAP_MS - (SystemClock.uptimeMillis() - shelvesReadAt);
+                scheduleShelves(Math.max(SHELF_CHANGE_DELAY_MS, wait));
+            }
+        };
+    }
+
+    /** Down from the last app row (or the library pill): into the first row, when there is one. */
+    private boolean focusShelves() {
+        return shelves != null && !reordering && shelves.getVisibility() == View.VISIBLE && shelves.focusRow(0);
+    }
+
+    @Override
+    public void onShelvesExit() {
+        focusTile(Math.max(0, Math.min(lastFocused, adapter.appCount() - 1)));
+    }
+
+    @Override
+    public void onShelfRowFocused(int row) {
+        hideHero();
+        pageTo(row, true);
+    }
+
+    /** OK on a card: the card's own activity, by explicit component, told which title with SHELF_ITEM. */
+    @Override
+    public void onShelfItemChosen(HomeShelves.Row row, HomeShelves.Item item) {
+        open(new Intent(Intent.ACTION_MAIN).setComponent(row.target).putExtra(HomeShelves.EXTRA_ITEM, item.id));
+    }
+
+    /** Places the rows again when the screen or the rows change size, keeping a focused row where pageTo put it. */
+    private void placeShelves() {
+        int rootH = root.getHeight(), rowsH = shelves.getHeight();
+        if (rootH == placedRootH && rowsH == placedRowsH) return;
+        placedRootH = rootH;
+        placedRowsH = rowsH;
+        pageTo(shelves.focusedRow(), false);
+    }
+
+    /** Moves Home (the header, the grid and the race panel) and the rows up so a row shows, or back to rest (-1). */
+    private void pageTo(int row, boolean animate) {
+        int rest = root.getHeight() - shelfPeek;
+        int target = row < 0 ? 0 : HomeShelves.pageOffset(rest, shelves.rowTop(row),
+                Math.round(SHELF_FOCUS_Y_DP * density), shelves.getHeight(),
+                root.getHeight() - Math.round(SHELF_BOTTOM_DP * density));
+        if (animate && target == pageOffset) return;
+        pageOffset = target;
+        View[] moving = {page, racePanel, shelves};
+        float[] to = {target, target, rest + target};
+        for (int i = 0; i < moving.length; i++) {
+            View v = moving[i];
+            v.animate().cancel();
+            if (animate && animations) {
+                v.animate().translationY(to[i]).setDuration(reducedMotion ? Motion.REDUCED_MS : PAGE_MS)
+                        .setInterpolator(pageEase).start();
+            } else {
+                v.setTranslationY(to[i]);
+            }
+        }
+    }
+
+    /** Reads the rows again soon when they may have changed or the last read is getting old; only while resumed. */
+    private void requestShelves() {
+        if (shelves == null || !resumed || !HomeShelves.working()) return;
+        if (!shelvesDirty && shelvesReadAt != 0 && SystemClock.uptimeMillis() - shelvesReadAt < SHELF_REREAD_MS) return;
+        scheduleShelves(SHELF_DELAY_MS);
+    }
+
+    private void scheduleShelves(long delayMs) {
+        handler.removeCallbacks(readShelves);
+        handler.postDelayed(readShelves, delayMs);
+    }
+
+    /** One read on HomeShelves' own thread; the result is shown only if no later read started meanwhile. */
+    private void readShelves() {
+        if (shelves == null || isDestroyed() || !HomeShelves.working()) return;
+        shelvesDirty = false;
+        shelvesReadAt = SystemClock.uptimeMillis();
+        final int load = ++shelfLoad;
+        final List<Cards.Card> none = Collections.emptyList();
+        final List<Cards.Card> shown = cards.isEmpty() ? none : CardFeature.run(() -> Cards.shown(cards), none);
+        if (shown.isEmpty()) {
+            showShelves(load, Collections.emptyList());
+            return;
+        }
+        final Context app = getApplicationContext();
+        final int w = shelves.pictureWidth(), h = shelves.pictureHeight();
+        try {
+            HomeShelves.loader().execute(() -> {
+                List<HomeShelves.Row> rows;
+                try {
+                    rows = HomeShelves.read(app, shown, shelfPictures, w, h, shelfLogged);
+                } catch (Exception | LinkageError e) {
+                    HomeShelves.fail(e);
+                    rows = Collections.emptyList();
+                }
+                final List<HomeShelves.Row> result = rows;
+                handler.post(() -> showShelves(load, result));
+            });
+        } catch (RuntimeException e) {
+            HomeShelves.fail(e);
+        }
+    }
+
+    private void showShelves(int load, List<HomeShelves.Row> rows) {
+        if (load != shelfLoad || shelves == null || isDestroyed()) return;
+        if (!HomeShelves.working()) rows = Collections.emptyList();
+        for (HomeShelves.Row row : rows) observeShelves(row.authority);
+        try {
+            shelves.setRows(rows);
+        } catch (RuntimeException e) {
+            // The launcher's own code failed on these rows: no rows for the rest of this session, apps as before.
+            HomeShelves.fail(e);
+            if (shelves.hasFocus()) onShelvesExit();
+            shelves.setVisibility(View.GONE);
+            pageTo(-1, false);
+        }
+    }
+
+    /** Listens for the module's own "my rows changed", once per provider, for as long as this Home lives. */
+    private void observeShelves(String authority) {
+        if (!observedShelves.add(authority)) return;
+        try {
+            getContentResolver().registerContentObserver(HomeShelves.rowsUri(authority), true, shelfObserver);
+        } catch (RuntimeException e) {
+            observedShelves.remove(authority);   // the provider went away since the read
+        }
+    }
+
+    /** Memory pressure while Home is away: the pictures go (the next read decodes them again), the rows stay. */
+    private void releaseShelfPictures() {
+        shelfLoad++;   // a read still running keeps its pictures to itself
+        shelvesDirty = true;
+        shelves.clearPictures();
+        if (shelvesReadAt != 0) HomeShelves.loader().execute(shelfPictures::clear);
     }
 
     /**

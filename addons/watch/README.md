@@ -93,6 +93,11 @@ TV and their pictures (TMDB backdrops at w300) from Watch's cache. When Home ope
 minutes old, Watch reads Trakt and TMDB again on one thread of its own and tells Home, which shows the new rows. There is
 no background service or timer: nothing is fetched unless Home asks.
 
+To turn them on, set `home_shelves` to `true` in the launcher's `config.xml` (with `module_cards`, on by default),
+install it again, and answer **Show card** for Watch. Build Watch and the launcher on the same computer: they must be
+signed with the same key, or Watch refuses Home. The launcher's side is described in
+[`docs/specs/shelves.md`](../../docs/specs/shelves.md).
+
 ## Permissions
 
 | Permission | Why |

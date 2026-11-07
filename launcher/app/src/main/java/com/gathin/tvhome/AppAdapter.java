@@ -61,6 +61,9 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         /** Hold OK on a tile: the activity shows the tile menu (move, remove from Home, app info). */
         void onTileLongPress(int position, View card);
         void onLibraryUp();
+        /** Down on the library pill: home_shelves' rows, when Home has them. */
+        default void onLibraryDown() {
+        }
     }
 
     /** The App library tile's key: a class name no app has, so it never matches a real tile's component. */
@@ -407,6 +410,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
             button.setOnKeyListener((v, key, event) -> {
                 if (event.getAction() != KeyEvent.ACTION_DOWN) return false;
                 if (key == KeyEvent.KEYCODE_DPAD_UP) listener.onLibraryUp();
+                if (key == KeyEvent.KEYCODE_DPAD_DOWN) listener.onLibraryDown();
                 return key == KeyEvent.KEYCODE_DPAD_UP || key == KeyEvent.KEYCODE_DPAD_DOWN
                         || key == KeyEvent.KEYCODE_DPAD_LEFT || key == KeyEvent.KEYCODE_DPAD_RIGHT;
             });
