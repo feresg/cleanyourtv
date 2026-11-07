@@ -69,14 +69,26 @@ EOF
   exit 1
 fi
 
-# The keys go in as a file through the app's provider (only the ADB shell may write it), so the
-# secrets never sit on a command line on the TV. The app reads it once and deletes it.
+# The keys go in as a file, never on a command line on the TV: through the app's provider (only the ADB shell may
+# write it), or, where the TV won't hand the shell that provider ("Could not find provider"), straight into the app's
+# own folder on shared storage, where the provider would have put it. The app reads it on opening and deletes it.
 if [ -n "$CONFIG" ]; then
   STAGE=/data/local/tmp/watch-config.json
   tv --push "$CONFIG" "$STAGE" >/dev/null
-  W=$(tv "content write $UOPT --uri content://$PKG.config/config.json < $STAGE; echo status=\$?; rm -f $STAGE" || true)
+  W=$(tv "content write $UOPT --uri content://$PKG.config/config.json < $STAGE; echo status=\$?" || true)
   case "$W" in
-    *Error*|*Exception*|*status=[1-9]*) echo "$W" >&2; echo "ERROR: the keys were not stored; the app is installed without them." >&2; exit 1 ;;
+    *Error*|*Exception*|*status=[1-9]*)
+      echo "The TV wouldn't let the shell reach the app's provider; putting the keys in the app's own folder instead."
+      DIR=/storage/emulated/${CUR:-0}/Android/data/$PKG/files
+      # The app makes that folder the first time it opens.
+      tv "am start $UOPT -n $LAUNCH >/dev/null" >/dev/null || true
+      sleep 3
+      C=$(tv "cp $STAGE $DIR/config.json && echo copied; rm -f $STAGE" || true)
+      case "$C" in
+        *copied*) tv "am force-stop $UOPT $PKG" >/dev/null || true ;;
+        *) echo "$C" >&2; echo "ERROR: the keys were not stored: the TV refused both the provider and $DIR." >&2; exit 1 ;;
+      esac ;;
+    *) tv "rm -f $STAGE" >/dev/null || true ;;
   esac
   echo "Keys stored."
 fi

@@ -88,7 +88,9 @@ it change. A new `trakt_client_id` signs Trakt out.
 - **Plain HTTP:** allowed for `127.0.0.1` and `localhost` only (`res/xml/network.xml`). Everything else is HTTPS.
 - **Storage:** keys and tokens stay in the app's own storage (backups are off). Posters are kept in memory only.
 - **Pushed config:** `ConfigProvider` takes the pushed file, and only the ADB shell can use it, because it
-  requires `WRITE_SECURE_SETTINGS`, as Smart Home's does.
+  requires `WRITE_SECURE_SETTINGS`, as Smart Home's does. On a TV that won't hand the shell that provider, `install.sh`
+  copies the file into the app's own folder (`Android/data/io.github.feresg.watch/files`) instead, where the provider
+  would have put it. Either way the app reads it once on opening and deletes it.
 - **Nothing else:** no background service, no telemetry, no ads, no libraries. It reads Trakt and TMDB only while
   the screen is open. A tab's rows are kept for 10 minutes.
 
