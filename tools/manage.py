@@ -249,6 +249,27 @@ def run(cmd, cwd):
     return subprocess.run(cmd, cwd=cwd).returncode
 
 
+def android_sdk(home=None, env=None):
+    """The Android SDK where launcher/build-and-install.sh looks: ANDROID_HOME, then Android Studio's default on macOS,
+    then on Linux, then Homebrew's command-line tools. None when there is none."""
+    env = os.environ if env is None else env
+    home = Path.home() if home is None else home
+    candidates = [env.get("ANDROID_HOME", ""), home / "Library" / "Android" / "sdk", home / "Android" / "Sdk",
+                  "/opt/homebrew/share/android-commandlinetools"]
+    for c in candidates:
+        if c and (Path(c) / "platforms").is_dir():
+            return Path(c)
+    return None
+
+
+def write_sdk_dir(folder, sdk):
+    """Gradle reads the SDK from local.properties; write it when missing. Forward slashes: it is a Java properties
+    file, where a Windows backslash is an escape."""
+    props = folder / "local.properties"
+    if not props.exists() and sdk:
+        props.write_text("sdk.dir=" + str(sdk).replace("\\", "/") + "\n", encoding="utf-8")
+
+
 def install_addon(item, extra):
     folder = ROOT / "addons" / item["id"]
     if item["script"]:
@@ -257,6 +278,12 @@ def install_addon(item, extra):
     # No script: the steps addons/README.md gives for every add-on.
     # Windows resolves a relative program against this process's directory, not cwd, so give the full path.
     gradlew = str(folder / "gradlew.bat") if os.name == "nt" else "./gradlew"
+    if not (folder / "local.properties").exists():
+        sdk = android_sdk()
+        if not sdk:
+            sys.exit("No Android SDK found: install platform 34 and build-tools 34.0.0 (Android Studio, or Homebrew's "
+                     "android-commandlinetools), or set ANDROID_HOME.")
+        write_sdk_dir(folder, sdk)
     code = run([gradlew, "assembleRelease"], folder)
     if code:
         return code

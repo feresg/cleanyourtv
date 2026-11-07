@@ -37,6 +37,24 @@ class ManageTest(unittest.TestCase):
         self.assertIn("dock_apps", keys)
         self.assertGreater(len(keys), 40)
 
+    def test_finds_the_android_sdk_where_the_launcher_script_looks(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            home = Path(d)
+            self.assertIsNone(manage.android_sdk(home=home, env={}))
+            mac = home / "Library" / "Android" / "sdk"
+            (mac / "platforms").mkdir(parents=True)
+            self.assertEqual(manage.android_sdk(home=home, env={}), mac)
+            own = home / "sdk"
+            (own / "platforms").mkdir(parents=True)
+            self.assertEqual(manage.android_sdk(home=home, env={"ANDROID_HOME": str(own)}), own)
+            folder = home / "addon"
+            folder.mkdir()
+            manage.write_sdk_dir(folder, Path("C:\\Users\\me\\Sdk"))
+            self.assertEqual((folder / "local.properties").read_text(), "sdk.dir=C:/Users/me/Sdk\n")
+            manage.write_sdk_dir(folder, mac)
+            self.assertEqual((folder / "local.properties").read_text(), "sdk.dir=C:/Users/me/Sdk\n", "kept as it was")
+
     def test_find_by_folder_or_name(self):
         self.assertEqual("weather", manage.find("Weather")["id"])
         self.assertEqual("theme", manage.find("aurora/")["kind"])
