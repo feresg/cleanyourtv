@@ -76,6 +76,7 @@
     <string name="reorder_hint">OK prend une appli, les flèches la déplacent, Retour la pose. Retour à nouveau pour terminer.</string>
     <string name="reorder_not_saved">Impossible d\'enregistrer le nouvel ordre</string>
     <string name="app_library">Bibliothèque d’applications</string>
+    <string name="home_full">L’accueil est plein : décochez d’abord une application</string>
     <string name="library_empty">Aucune application à ouvrir</string>
     <string name="library_on_home">Sur l’accueil</string>
     <string name="library_add_home">Ajouter à l’accueil</string>

@@ -21,6 +21,21 @@ OK for Add to Home or Remove from Home, as before. Cards that are not on Home dr
 line (a new app keeps its green dot), and the hint reads "Press to open" for every app. It is off by
 default, and with `app_library_selection` also on, selection mode wins.
 
+## Optional: Home holds a fixed number of rows
+
+Set `"home_rows": 1` (to `3`) along with `"app_library": true`, in a theme or `config.xml`, for a Home of the dock
+and that many rows whose last tile is the App library (labelled App library, where the pill would be). Pair it
+with `app_library_selection` for a tick list.
+
+- An app is on Home exactly when its tile shows. The apps that don't fit are taken off Home and wait, unticked, in
+  the library; a new install lands there with its green dot.
+- Ticking an app while Home has no free slot is refused with "Home is full: untick an app first". Untick one to make
+  room, then tick the one you want.
+- The library lists every app by name, ticked or not.
+- Order the tiles on Home with Move (hold OK, with `tile_menu`) or Reorder apps; the App library tile stays last.
+- The pill after the last row and the Default-home tile are left out, and Back from the library returns to the tile.
+- `rows_below_dock` follows `home_rows`, so the tiles are sized for exactly those rows. `single_row` ignores it.
+
 ## Standard behavior
 
 Set `"app_library": true` in a theme’s `config.json`, or enable the `app_library`

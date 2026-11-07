@@ -63,8 +63,11 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         void onLibraryUp();
     }
 
+    /** The App library tile's key: a class name no app has, so it never matches a real tile's component. */
+    static final String ALL_APPS_KEY = "home-rows-app-library";
+
     static final class Entry {
-        static final int APP = 0, HOME_SETTINGS = 1, CARD = 2, EMPTY = 3;
+        static final int APP = 0, HOME_SETTINGS = 1, CARD = 2, EMPTY = 3, ALL_APPS = 4;
 
         final int kind;
         final String label;
@@ -217,6 +220,8 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     /** Every app tile is its icon on a card tinted from that icon, never its banner (config.xml, uniform_tiles). */
     private final boolean uniformTiles;
     private final List<Entry> items = new ArrayList<>();
+    /** home_rows: tiles Home keeps before its App library tile; 0 leaves Home as it was. */
+    private final int homeCapacity;
 
     AppAdapter(Context ctx, TileListener listener, int dockSize, Config cfg) {
         this.ctx = ctx;
@@ -228,8 +233,10 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         this.libraryPreload = new HashSet<>(cfg.libraryApps);
         this.animations = cfg.animations;
         this.advancedEffects = cfg.animations && cfg.advancedEffects;
-        this.showHomeSettings = cfg.showHomeSettingsShortcut;
-        this.showLibrary = LibraryApps.showPill(cfg.appLibrary, cfg.libraryButton, cfg.showLibraryPill);
+        this.homeCapacity = HomeRows.capacity(cfg.homeRows, dockSize);
+        // With home_rows the library tile is the way to the other apps: no pill, no Default-home tile.
+        this.showHomeSettings = cfg.showHomeSettingsShortcut && homeCapacity == 0;
+        this.showLibrary = homeCapacity == 0 && LibraryApps.showPill(cfg.appLibrary, cfg.libraryButton, cfg.showLibraryPill);
         this.reducedMotion = cfg.reducedMotion;
         this.focusOvershoot = cfg.focusOvershoot;
         this.rowsBelowDock = cfg.rowsBelowDock;
@@ -334,6 +341,16 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         for (int i = 0; i < emptySlots; i++) {
             fresh.add(docked + i, new Entry(Entry.EMPTY, "", new ComponentName(ctx, "empty-dock-slot-" + i),
                     null, null, null, 0));
+        }
+        if (homeCapacity > 0) {
+            // home_rows: the tiles that don't fit leave Home and wait unticked in the library (a new install
+            // lands there too, with its green dot), so an app is on Home exactly when its tile shows.
+            while (fresh.size() > homeCapacity) {
+                Entry over = fresh.remove(fresh.size() - 1);
+                if (over.kind == Entry.APP || over.kind == Entry.CARD) LibraryApps.save(ctx, over.pkg, false);
+            }
+            fresh.add(new Entry(Entry.ALL_APPS, ctx.getString(R.string.app_library),
+                    new ComponentName(ctx, ALL_APPS_KEY), null, ctx.getDrawable(R.drawable.ic_apps), null, 0));
         }
         items.clear();
         items.addAll(fresh);
@@ -482,6 +499,7 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         }
         h.card.setOnClickListener(v -> launch(e));
         h.card.setOnLongClickListener(v -> {
+            if (e.kind == Entry.ALL_APPS) return true;   // the library tile has no menu and no App info
             if (tileMenu) {
                 int pos = h.getBindingAdapterPosition();
                 if (pos != RecyclerView.NO_POSITION) listener.onTileLongPress(pos, v);
@@ -499,6 +517,10 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     /** Opens the tile's activity by explicit component, with no extras: a card can name nothing else. */
     private void launch(Entry e) {
+        if (e.kind == Entry.ALL_APPS) {
+            listener.onLibraryRequested();
+            return;
+        }
         if (e.kind == Entry.HOME_SETTINGS) {
             ctx.startActivity(new Intent(ctx, HomeSettingsActivity.class)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
@@ -574,10 +596,23 @@ public class AppAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         return emptySlots > 0;
     }
 
-    /** Tiles that can be moved: everything but the "Default home" tile, which always stays last. */
+    /** Tiles that can be moved: everything but the "Default home" or App library tile, which always stays last. */
     int movableCount() {
         int n = items.size();
-        return n > 0 && items.get(n - 1).kind == Entry.HOME_SETTINGS ? n - 1 : n;
+        if (n == 0) return 0;
+        int last = items.get(n - 1).kind;
+        return last == Entry.HOME_SETTINGS || last == Entry.ALL_APPS ? n - 1 : n;
+    }
+
+    /** home_rows: true when Home has no slot for another app, so the library refuses to tick one. */
+    boolean homeFull() {
+        return HomeRows.full(movableCount(), homeCapacity);
+    }
+
+    /** The App library tile's position (home_rows), or -1 without one. */
+    int allAppsPosition() {
+        int n = items.size();
+        return n > 0 && items.get(n - 1).kind == Entry.ALL_APPS ? n - 1 : -1;
     }
 
     /** Keys of the movable tiles in their current order, for Order (empty dock slots are not tiles). */

@@ -339,6 +339,17 @@
          Can also be set with "tile_menu": true in a theme's config.json. -->
     <bool name="tile_menu">false</bool>
 
+    <!-- Home holds the dock and this many rows (1 to 3), and its last tile opens the App library, where every other
+         app is: an app is on Home exactly when its tile shows, the ones that don't fit are unticked in the library, and
+         ticking another is refused while Home is full. Reorder with Move or Reorder apps. Needs app_library; ignored
+         with single_row. Sets the rows under the dock (rows_below_dock) to the same number. 0, the default, leaves Home
+         as it is. Can also be set with "home_rows" in a theme. -->
+    <integer name="home_rows">0</integer>
+    <!-- Rows of pictures under the apps, from a module whose card is shown and which offers them (its card activity
+         names a provider in "com.gathin.tvhome.shelves" meta-data). The launcher reads them from that provider, with
+         no network of its own; OK opens the module at that item. Off by default; a theme can set "home_shelves". -->
+    <bool name="home_shelves">false</bool>
+
     <!-- Grid rows left visible under the dock on the home screen. 0 = dock sits at the very bottom. Tiles shrink if
          the dock, its title and this many rows would not otherwise fit the screen height. -->
     <integer name="rows_below_dock">0</integer>

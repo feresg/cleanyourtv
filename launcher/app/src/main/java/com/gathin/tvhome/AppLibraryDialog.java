@@ -44,6 +44,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.function.BooleanSupplier;
 import java.util.function.Predicate;
 
 /** On-demand installed-app picker. Uses the launcher's glass resources; no backdrop capture or blur. */
@@ -76,6 +77,10 @@ final class AppLibraryDialog {
     private final LibraryLoads loads = new LibraryLoads();
     private final Activity activity;
     private final Predicate<String> onHome;
+    /** home_rows: true while Home has no slot left, so ticking another app is refused. */
+    private final BooleanSupplier homeFull;
+    /** home_rows: every app by name, ticked or not, instead of missing apps first. */
+    private final boolean alphabetical;
     private final Runnable changed;
     private final LinearLayout panel;
     private final boolean reducedMotion;
@@ -143,7 +148,8 @@ final class AppLibraryDialog {
         if (popup.isShowing()) popup.update(width, height);
     }
 
-    AppLibraryDialog(Activity activity, boolean animations, boolean reducedMotion, boolean selectionMode, boolean okOpens, Predicate<String> onHome, Runnable changed, Runnable dismissed) {
+    AppLibraryDialog(Activity activity, boolean animations, boolean reducedMotion, boolean selectionMode, boolean okOpens,
+                     Predicate<String> onHome, BooleanSupplier homeFull, boolean alphabetical, Runnable changed, Runnable dismissed) {
         this.activity = activity;
         this.animations = animations;
         this.rtl = activity.getResources().getBoolean(R.bool.rtl_app_grid);
@@ -151,6 +157,8 @@ final class AppLibraryDialog {
         this.selectionMode = selectionMode;
         this.okOpens = okOpens && !selectionMode;
         this.onHome = onHome;
+        this.homeFull = homeFull;
+        this.alphabetical = alphabetical;
         this.changed = changed;
         this.dismissed = dismissed;
         density = activity.getResources().getDisplayMetrics().density;
@@ -278,6 +286,10 @@ final class AppLibraryDialog {
         Collator collator = Collator.getInstance();
         apps.sort((a, b) -> {
             String pa = a.activityInfo.packageName, pb = b.activityInfo.packageName;
+            if (alphabetical) {
+                int byName = collator.compare(label(a), label(b));
+                return byName != 0 ? byName : pa.compareTo(pb);
+            }
             if (selectionMode) return LibraryApps.compareCatalog(home.get(pa), label(a), pa,
                     home.get(pb), label(b), pb, collator);
             int priority = LibraryApps.comparePriority(home.get(pa), installTimes.get(pa),
@@ -438,6 +450,10 @@ final class AppLibraryDialog {
     }
 
     private void changeHome(ResolveInfo app, boolean add) {
+        if (add && homeFull.getAsBoolean()) {
+            Toast.makeText(activity, R.string.home_full, Toast.LENGTH_LONG).show();
+            return;
+        }
         if (!LibraryApps.save(activity, app.activityInfo.packageName, add)) {
             Toast.makeText(activity, R.string.library_save_failed, Toast.LENGTH_LONG).show();
             return;
