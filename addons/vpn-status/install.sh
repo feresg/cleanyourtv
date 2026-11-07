@@ -26,5 +26,37 @@ OUT=$(tv 'pm install -r /data/local/tmp/vpn-status.apk; rm -f /data/local/tmp/vp
 echo "$OUT"
 case "$OUT" in *Success*) ;; *) echo "ERROR: pm install failed" >&2; exit 1 ;; esac
 
-tv "am start -n $PKG/.MainActivity >/dev/null; echo opened"
+# On a TV with more than one profile, use the one on screen for every step after the install.
+UOPT=""
+USERS=$(tv "pm list users" | grep -c "UserInfo{" || true)
+if [ "${USERS:-0}" -gt 1 ]; then
+  CUR=$(tv "am get-current-user" | tr -dc '0-9')
+  [ -n "$CUR" ] && UOPT="--user $CUR" && echo "This TV has $USERS users; using the one on screen, user $CUR."
+fi
+
+# Success can come before Android will start the app (a slow TV still registering it), and something on the TV can
+# also remove, hide or disable it right after. Wait until Android resolves the app's own screen before using it.
+LAUNCH="$PKG/.MainActivity"
+READY=""
+for _ in $(seq 1 15); do
+  R=$(tv "pm path $UOPT $PKG; cmd package resolve-activity $UOPT --brief -a android.intent.action.MAIN -c android.intent.category.LEANBACK_LAUNCHER $PKG" || true)
+  if [[ "$R" == *package:* && ( "$R" == *"$LAUNCH"* || "$R" == *"$PKG/$PKG.MainActivity"* ) ]]; then READY=1; break; fi
+  sleep 1
+done
+if [ -z "$READY" ]; then
+  echo "ERROR: pm install said Success, but after 15 s Android still can't start $LAUNCH. What the TV reports:" >&2
+  tv "echo '## users'; pm list users; echo '## installed for any user (-u), disabled (-d)'; pm list packages -u $PKG; pm list packages -d $PKG; echo '## dumpsys package'; dumpsys package $PKG | grep -E 'versionName|codePath|User [0-9]+:|installed=|hidden=|suspended=|enabled=' | head -20" >&2 || true
+  cat >&2 <<EOF
+How to read it:
+  - $PKG missing even under -u: the TV removed the app right after installing it (a vendor install guard).
+  - "installed=true" only for another user than the one on screen: it went to another profile.
+  - "hidden=true" or "suspended=true": something on the TV hid or suspended it.
+  - listed under -d, or "enabled=2" or "3": it is disabled; tools/tv.py 'pm enable $PKG' turns it back on.
+Nothing else was done after the install.
+EOF
+  exit 1
+fi
+
+S=$(tv "am start $UOPT -n $LAUNCH" || true)
+case "$S" in *Error*|*Exception*) echo "$S" >&2; echo "ERROR: $LAUNCH would not start." >&2; exit 1 ;; esac
 echo "Installed. VPN Status is open on the TV; press Home and answer Show card for the card."
