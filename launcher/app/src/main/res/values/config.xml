@@ -192,8 +192,9 @@
          still opens on a tap; "hold:scan:490:..." works for scancodes. A key with only a hold entry does nothing
          on a tap. A listed app that is not installed leaves the button doing nothing. Leave empty to omit. -->
     <string-array name="app_keys" translatable="false">
-        <!-- This TV (TCL Smart TV Pro): the Guide button went to Google's home; it opens the antenna channels again. -->
-        <item>KEYCODE_GUIDE:com.tcl.tv</item>
+        <!-- This TV (TCL Smart TV Pro): the Guide button went to Google's home. It now tunes the antenna input (TNT)
+             in com.tcl.tv, which otherwise opens whatever source was last on (AirPlay here). -->
+        <item>KEYCODE_GUIDE:input:com.tcl.tvinput/.TDTVInputService/HW1413742848</item>
     </string-array>
 
     <!-- Package of the stock launcher, for TVs whose firmware turns it back on after it was disabled. XGIMI's
