@@ -341,6 +341,22 @@ final class RemoteKeys {
                     .setDataAndType(TvContract.buildChannelUriForPassthroughInput(inputId),
                             "vnd.android.cursor.item/channel")
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            // Aimed at the Live TV app first, as the Inputs menu does: other apps (Google Play Movies & TV on a TCL
+            // Google TV) claim channel URIs too, and one of them could take the button and fail to play the input.
+            String liveTv = "";
+            try {
+                liveTv = Config.load(ctx).liveTvPackage;
+            } catch (RuntimeException ignored) {
+                // No config: the plain request below.
+            }
+            if (!liveTv.isEmpty()) {
+                try {
+                    ctx.startActivity(new Intent(view).setPackage(liveTv));
+                    return;
+                } catch (ActivityNotFoundException | SecurityException ignored) {
+                    // That app does not take it: the plain request below.
+                }
+            }
             try {
                 ctx.startActivity(view);
             } catch (ActivityNotFoundException ignored) {
